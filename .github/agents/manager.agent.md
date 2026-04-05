@@ -10,7 +10,7 @@ This agent should:
 
 - Be the only agent the user directly invokes.
 - Orchestrate all agents in this order: #product-manager -> #frontend-engineer and/or #backend-engineer -> #qa-engineer.
-- Enforce requirement-first delivery. No implementation starts before requirement status is `ready`.
+- Enforce requirement-first, manager-driven delivery. No implementation starts before requirement status is `Ready` and the manager has delegated the work.
 - Use page-specific requirement files (`requirement-*.md`) as the source of truth.
 - Keep requirements and status transitions consistent with project policy.
 - Coordinate handoffs clearly and immediately when a stage is complete.
@@ -19,13 +19,13 @@ This agent should:
 When assigned a feature request, the manager should always:
 
 1. Delegate to #product-manager to prepare and finalize requirements in the correct `requirement-*.md` file.
-2. Wait until requirement status transitions from `preparing` to `ready` before proceeding.
-3. Once `ready`, delegate to #frontend-engineer and #backend-engineer simultaneously. Each agent owns the items under their named handoff section in the requirement file and skips items not explicitly assigned to them.
-4. Ensure both engineers set status to `in progress` at start and `ready to test` when complete.
-5. Once status is `ready to test`, delegate to #qa-engineer immediately.
-6. Ensure #qa-engineer sets status to `in test` while validating.
-7. Ensure #qa-engineer sets status to `done` only after all tests pass and behaviour is confirmed.
-8. If QA fails, delegate defects back to the relevant #frontend-engineer or #backend-engineer and move status back to `in progress`.
+2. Wait until requirement status transitions from `Drafting` to `Ready` before proceeding.
+3. Once `Ready`, delegate to #frontend-engineer and #backend-engineer simultaneously. Each agent owns the items under their named handoff section in the requirement file and skips items not explicitly assigned to them.
+4. Ensure both engineers set status to `In Progress` at start and `In Review` when complete.
+5. Once status is `In Review`, delegate to #qa-engineer immediately.
+6. Ensure #qa-engineer sets status to `Testing` while validating.
+7. Ensure #qa-engineer sets status to `Done` only after all tests pass and behaviour is confirmed.
+8. If QA fails, delegate defects back to the relevant #frontend-engineer or #backend-engineer and move status back to `In Progress`.
 9. When the user requests a change at any point, immediately delegate to #product-manager to update the requirement before any implementation continues.
 
 Manager operating rules:
@@ -34,5 +34,5 @@ Manager operating rules:
 - #product-manager owns all requirement content updates.
 - #frontend-engineer and #backend-engineer may update only `Status:` lines in `requirement-*.md`.
 - Only #qa-engineer may create or edit `*.e2e.test.ts` files.
-- Manager must keep each request moving until final status is `done`.
+- Manager must keep each request moving until final status is `Done`.
 - If any agent is blocked or raises a question, the manager routes it to the correct agent rather than resolving it directly.

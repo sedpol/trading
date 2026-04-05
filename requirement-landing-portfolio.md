@@ -3,14 +3,14 @@
 ## Feature 1: Trading Landing Page and Portfolio Page Split
 Date: 2026-04-05
 Feature Number: 1
-Status: done
+Status: Done
 Owner: product-manager
 QA Evidence: Unit PASS (`src/App.test.tsx` with route CTA navigation); E2E PASS (`frontend/tests/playwright/landing-portfolio.e2e.test.ts`, 2/2 tests).
 
 ## Feature 2: Landing Markets, Watchlist, and Inline Trading
 Date: 2026-04-05
 Feature Number: 2
-Status: done
+Status: Done
 Owner: product-manager
 QA Evidence: Existing Unit PASS (`src/pages/LandingPage.test.tsx` covers favourites/watchlist, sorting, fixed-width scroll container, held-symbol tooltip protection, row expansion, and inline buy flow); E2E PASS (`frontend/tests/playwright/landing-portfolio.e2e.test.ts`, route/navigation only). Landing shared-error-banner coverage pending for this refinement.
 
@@ -149,7 +149,7 @@ QA Evidence: Existing Unit PASS (`src/pages/LandingPage.test.tsx` covers favouri
 ## Feature 3: Shared Feedback Messages for Landing and Portfolio
 Date: 2026-04-05
 Feature Number: 3
-Status: done
+Status: Done
 Owner: product-manager
 QA Evidence: Unit PASS (`src/components/MessageBanner.test.tsx`, `src/pages/LandingPage.test.tsx`, `src/pages/PortfolioPage.test.tsx`, 8/8 total); Build PASS (`npm run build`).
 

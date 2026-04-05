@@ -10,18 +10,18 @@ Each request should be added as a new dated section.
 
 ## Status Lifecycle
 
-- perparing: Product owner is preparing requirements.
-- ready: Product owner confirms requirement is ready for implementation.
-- in progress: Developer is implementing.
-- ready to test: Developer finished implementation and hands over to QA.
-- in test: QA has started testing.
-- done: QA confirms requirement implemented successfully.
+- Drafting: Product owner is preparing requirements.
+- Ready: Product owner confirms requirement is ready for implementation.
+- In Progress: Developer is implementing.
+- In Review: Developer finished implementation and hands over to QA.
+- Testing: QA has started testing.
+- Done: QA confirms requirement implemented successfully.
 
 ## Entry Template
 
 ### Request: <short title>
 Date: <YYYY-MM-DD>
-Status: perparing | ready | in progress | ready to test | in test | done
+Status: Drafting | Ready | In Progress | In Review | Testing | Done
 Owner: product-manager
 
 #### 1. Problem Statement

@@ -26,12 +26,12 @@ When assigned a task, the agent should always:
 - Use secure patterns for database and external interaction.
 - Add tests for new behavior and regression protection.
 - Deliver maintainable backend code with clear file structure and NestJS conventions.
-- When a `requirement-*.md` file is updated, immediately action backend-owned items marked `ready`.
-- Set status to `in progress` when implementation starts.
+- Start implementation only when delegated by the `manager` agent and the assigned requirement status is `Ready`.
+- Set status to `In Progress` when implementation starts.
 - If a requirement is ambiguous, ask product-manager for clarification, flag the assumption made, and proceed with best judgement rather than blocking.
-- After finishing assigned implementation and validation, set status to `ready to test` and hand over to QA.
+- After finishing assigned implementation and validation, set status to `In Review` and hand over to QA.
 
 Ownership rules:
 
-- When a feature spans both frontend and backend, this agent owns all items under the `Backend` handoff section of the requirement file.
+- When a feature spans both frontend and backend, this agent owns all items under `#### 8. Backend Handoff` in the requirement file.
 - Items not explicitly assigned to backend should be skipped and left to the frontend-engineer.

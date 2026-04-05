@@ -19,8 +19,8 @@ This agent is a specialized QA engineer for the trading platform. It should:
 When assigned a task, the agent should always:
 
 - Review requirement acceptance criteria before writing any tests.
-- Start testing only when status is `ready to test`; immediately set status to `in test`.
+- Start testing only when status is `In Review`; immediately set status to `Testing`.
 - Add E2E tests for new user-facing flows and critical regressions.
 - Run relevant test suites and capture pass/fail outcomes.
-- If QA passes, set status to `done`.
-- If QA fails, set status back to `in progress`, provide clear defect details including repro steps, expected vs. observed behaviour, and which acceptance criterion failed, and route to the relevant engineer.
+- If QA passes, set status to `Done`.
+- If QA fails, set status back to `In Progress`, provide clear defect details including repro steps, expected vs. observed behaviour, and which acceptance criterion failed, and route to the relevant engineer.

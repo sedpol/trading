@@ -3,7 +3,7 @@
 ## Feature 1: Holdings P&L Position Actions MVP
 Date: 2026-04-05
 Feature Number: 1
-Status: done
+Status: Done
 Owner: product-manager
 QA Evidence: Unit PASS (`src/components/HoldingsPnl.test.tsx`, `src/components/Watchlist.test.tsx`); E2E N/A (no dedicated `*.e2e.test.ts` scenario for this isolated scope).
 
