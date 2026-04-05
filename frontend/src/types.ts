@@ -35,6 +35,7 @@ export type Summary = {
   cashBalance: number;
   dailyPnl: number;
   watchlist: WatchlistItem[];
+  allMarkets: WatchlistItem[];
   positions: Position[];
   history: TradeHistoryItem[];
 };

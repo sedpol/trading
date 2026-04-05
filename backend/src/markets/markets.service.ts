@@ -37,6 +37,7 @@ type MarketSummary = {
   cashBalance: number;
   dailyPnl: number;
   watchlist: WatchlistItem[];
+  allMarkets: WatchlistItem[];
   positions: Position[];
   history: TradeHistoryItem[];
 };
@@ -44,11 +45,12 @@ type MarketSummary = {
 @Injectable()
 export class MarketsService {
   private cashBalance = 20000;
+  private readonly manualWatchlistSymbols = new Set<string>(['AAPL', 'GOOG', 'NVDA', 'MSFT', 'AMZN']);
 
   private readonly positionLots: Record<string, PositionLot[]> = {};
   private readonly tradeHistory: TradeHistoryItem[] = [];
 
-  private readonly watchlist: WatchlistItem[] = [
+  private readonly allMarkets: WatchlistItem[] = [
     { symbol: 'AAPL', companyName: 'Apple Inc.', startPrice: 212.48, price: 212.48, change: 0 },
     { symbol: 'GOOG', companyName: 'Alphabet Inc.', startPrice: 176.91, price: 176.91, change: 0 },
     { symbol: 'NVDA', companyName: 'NVIDIA Corporation', startPrice: 942.65, price: 942.65, change: 0 },
@@ -76,10 +78,29 @@ export class MarketsService {
       balance: this.calculateBalance(),
       cashBalance: Number(this.cashBalance.toFixed(2)),
       dailyPnl: this.calculateDailyPnl(),
-      watchlist: this.watchlist,
+      watchlist: this.getSelectedWatchlist(),
+      allMarkets: this.allMarkets,
       positions: this.getPositions(),
       history: [...this.tradeHistory].reverse(),
     };
+  }
+
+  toggleWatchlist(symbol: string) {
+    const normalizedSymbol = this.validateSymbol(symbol);
+
+    this.findMarketItem(normalizedSymbol);
+
+    if (this.getOwnedQuantity(normalizedSymbol) > 0) {
+      return this.getSummary();
+    }
+
+    if (this.manualWatchlistSymbols.has(normalizedSymbol)) {
+      this.manualWatchlistSymbols.delete(normalizedSymbol);
+    } else {
+      this.manualWatchlistSymbols.add(normalizedSymbol);
+    }
+
+    return this.getSummary();
   }
 
   buyShares(symbol: string, quantity: number) {
@@ -99,6 +120,8 @@ export class MarketsService {
       quantity: normalizedQuantity,
       boughtPrice: marketItem.price,
     });
+
+    this.manualWatchlistSymbols.add(normalizedSymbol);
 
     this.cashBalance = Number((this.cashBalance - netTotal).toFixed(2));
     this.recordTrade(
@@ -162,7 +185,7 @@ export class MarketsService {
   }
 
   updateWatchlistPrices(): MarketSummary {
-    this.watchlist.forEach((item) => {
+    this.allMarkets.forEach((item) => {
       const direction = Math.random() < 0.5 ? -1 : 1;
       const delta = Number((Math.random() * 0.58).toFixed(2));
       const nextPrice = Number(
@@ -205,9 +228,21 @@ export class MarketsService {
       .sort((left, right) => left.symbol.localeCompare(right.symbol));
   }
 
+  private getSelectedWatchlist() {
+    const selectedSymbols = new Set(this.manualWatchlistSymbols);
+
+    this.getPositions().forEach((position) => {
+      if (position.quantity > 0) {
+        selectedSymbols.add(position.symbol);
+      }
+    });
+
+    return this.allMarkets.filter((item) => selectedSymbols.has(item.symbol));
+  }
+
   private calculateBalance() {
     const positionsValue = this.getPositions().reduce((total, position) => {
-      const marketItem = this.watchlist.find((item) => item.symbol === position.symbol);
+      const marketItem = this.allMarkets.find((item) => item.symbol === position.symbol);
       const currentPrice = marketItem?.price ?? position.averagePrice;
       return total + position.quantity * currentPrice;
     }, 0);
@@ -219,7 +254,7 @@ export class MarketsService {
     return Number(
       this.getPositions()
         .reduce((total, position) => {
-          const marketItem = this.watchlist.find((item) => item.symbol === position.symbol);
+          const marketItem = this.allMarkets.find((item) => item.symbol === position.symbol);
 
           if (!marketItem) {
             return total;
@@ -250,13 +285,17 @@ export class MarketsService {
   }
 
   private findMarketItem(symbol: string) {
-    const marketItem = this.watchlist.find((item) => item.symbol === symbol);
+    const marketItem = this.allMarkets.find((item) => item.symbol === symbol);
 
     if (!marketItem) {
       throw new BadRequestException('Symbol not found in watchlist.');
     }
 
     return marketItem;
+  }
+
+  private getOwnedQuantity(symbol: string) {
+    return (this.positionLots[symbol] ?? []).reduce((total, lot) => total + lot.quantity, 0);
   }
 
   private getOrCreateLots(symbol: string) {

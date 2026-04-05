@@ -31,6 +31,10 @@ describe('HoldingsPnl', () => {
         positionsWithPnl={positionsWithPnl}
         selectedHolding={null}
         toggleHolding={() => {}}
+        tradeQuantity={{ AAPL: 1, GOOG: 1 }}
+        activeTradeKey={null}
+        onQuantityChange={() => {}}
+        onTrade={() => {}}
       />
     );
 

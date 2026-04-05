@@ -17,7 +17,7 @@ const mockSummary = {
   history: [],
 };
 
-test('loads the dashboard, expands watchlist rows, and executes a trade', async ({ page }) => {
+test('loads landing, opens portfolio, expands watchlist rows, and executes a trade', async ({ page }) => {
   await page.route('**/markets/summary', async (route) => {
     await route.fulfill({
       status: 200,
@@ -36,7 +36,10 @@ test('loads the dashboard, expands watchlist rows, and executes a trade', async 
 
   await page.goto('/');
 
-  await expect(page.locator('text=Trading Dashboard')).toBeVisible();
+  await expect(page.locator('text=Built for Active Traders')).toBeVisible();
+  await page.getByRole('link', { name: /Go to My Portfolio/i }).click();
+  await expect(page.locator('text=My Portfolio')).toBeVisible();
+
   await page.getByRole('button', { name: /AAPL/i }).click();
   await expect(page.locator('text=Apple Inc.')).toBeVisible();
 

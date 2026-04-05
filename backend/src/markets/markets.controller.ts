@@ -6,6 +6,10 @@ type TradeRequest = {
   quantity: number;
 };
 
+type WatchlistRequest = {
+  symbol: string;
+};
+
 @Controller('markets')
 export class MarketsController {
   constructor(private readonly marketsService: MarketsService) {}
@@ -23,5 +27,10 @@ export class MarketsController {
   @Post('sell')
   sellShares(@Body() trade: TradeRequest) {
     return this.marketsService.sellShares(trade.symbol, trade.quantity);
+  }
+
+  @Post('watchlist')
+  toggleWatchlist(@Body() watchlist: WatchlistRequest) {
+    return this.marketsService.toggleWatchlist(watchlist.symbol);
   }
 }

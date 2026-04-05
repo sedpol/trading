@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('socket.io-client', () => ({
@@ -13,6 +13,15 @@ const mockSummary = {
   cashBalance: 20000,
   dailyPnl: 0,
   watchlist: [
+    {
+      symbol: 'AAPL',
+      companyName: 'Apple Inc.',
+      startPrice: 212.48,
+      price: 212.48,
+      change: 0,
+    },
+  ],
+  allMarkets: [
     {
       symbol: 'AAPL',
       companyName: 'Apple Inc.',
@@ -46,12 +55,16 @@ describe('App', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders the dashboard and loads summary data', async () => {
+  it('renders landing by default and opens portfolio dashboard from CTA', async () => {
     const { default: App } = await import('./App');
 
     render(<App />);
 
-    expect(screen.getByText(/Trading Dashboard/i)).toBeInTheDocument();
+    expect(screen.getByText(/Built for Active Traders/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('link', { name: /Go to My Portfolio/i }));
+
+    expect(screen.getByText(/My Portfolio/i)).toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByText('AAPL')).toBeInTheDocument();
