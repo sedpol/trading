@@ -72,5 +72,5 @@ Owner: product-manager
 
 ## Page Requirement Files
 
-- Holdings P&L page requirements: `reqirement-holdings-pnl.md`
-- Landing and My Portfolio page requirements: `reqirement-landing-portfolio.md`
+- Holdings P&L page requirements: `requirement-holdings-pnl.md`
+- Landing and My Portfolio page requirements: `requirement-landing-portfolio.md`
