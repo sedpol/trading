@@ -1,51 +1,16 @@
 import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
+import { HoldingsPnl } from './components/HoldingsPnl';
+import { StatsGrid } from './components/StatsGrid';
+import { TradeHistory } from './components/TradeHistory';
+import { Watchlist } from './components/Watchlist';
+import type { Position, Summary } from './types';
 
-type PositionLot = {
-  quantity: number;
-  boughtPrice: number;
-};
-
-type TradeHistoryItem = {
-  id: string;
-  symbol: string;
-  side: 'BUY' | 'SELL';
-  quantity: number;
-  price: number;
-  grossTotal: number;
-  commission: number;
-  netTotal: number;
-  timestamp: string;
-};
-
-type Summary = {
-  balance: number;
-  cashBalance: number;
-  dailyPnl: number;
-  watchlist: Array<{
-    symbol: string;
-    startPrice: number;
-    price: number;
-    change: number;
-  }>;
-  positions: Array<{
-    symbol: string;
-    quantity: number;
-    averagePrice: number;
-    lots: PositionLot[];
-  }>;
-  history: TradeHistoryItem[];
-};
-
-const API_BASE_URL = 'http://localhost:3000';
-const SOCKET_URL = 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || API_BASE_URL;
 const gbp = new Intl.NumberFormat('en-GB', {
   style: 'currency',
   currency: 'GBP',
-});
-const dateTime = new Intl.DateTimeFormat('en-GB', {
-  dateStyle: 'medium',
-  timeStyle: 'medium',
 });
 
 export default function App() {
@@ -57,6 +22,30 @@ export default function App() {
   const [tradeQuantity, setTradeQuantity] = useState<Record<string, number>>({});
   const [activeTradeKey, setActiveTradeKey] = useState<string | null>(null);
   const [selectedHolding, setSelectedHolding] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!tradeStatus) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setTradeStatus(null);
+    }, 5000);
+
+    return () => window.clearTimeout(timer);
+  }, [tradeStatus]);
+
+  useEffect(() => {
+    if (!error) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setError(null);
+    }, 5000);
+
+    return () => window.clearTimeout(timer);
+  }, [error]);
 
   useEffect(() => {
     const fetchSummary = async () => {
@@ -82,6 +71,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (SOCKET_URL === 'none') {
+      setConnectionLabel('Live prices disabled');
+      return;
+    }
+
     const socket = io(SOCKET_URL, {
       transports: ['websocket'],
     });
@@ -110,7 +104,13 @@ export default function App() {
     };
   }, []);
 
-  const positionsWithPnl =
+  type HoldingWithPnl = Position & {
+    marketPrice: number;
+    pnlPerShare: number;
+    totalPnl: number;
+  };
+
+  const positionsWithPnl: HoldingWithPnl[] =
     summary?.positions.map((position) => {
       const marketPrice =
         summary.watchlist.find((item) => item.symbol === position.symbol)?.price ??
@@ -151,6 +151,7 @@ export default function App() {
       setSummary(data as Summary);
       setError(null);
       setTradeStatus(`${side === 'buy' ? 'Bought' : 'Sold'} ${quantity} ${symbol} share(s).`);
+      setTradeQuantity((current) => ({ ...current, [symbol]: 1 }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Trade failed.');
     } finally {
@@ -186,172 +187,37 @@ export default function App() {
         </div>
       )}
 
-      <section className="stats-grid">
-        <article className="card">
-          <span>Total Balance</span>
-          <strong>
-            {isLoading ? 'Loading...' : summary ? gbp.format(summary.balance) : '--'}
-          </strong>
-        </article>
-
-        <article className="card">
-          <span>Cash Balance</span>
-          <strong>
-            {isLoading ? 'Loading...' : summary ? gbp.format(summary.cashBalance) : '--'}
-          </strong>
-        </article>
-
-        <article className="card">
-          <span>Total P&amp;L</span>
-          <strong>
-            {isLoading ? 'Loading...' : summary ? gbp.format(summary.dailyPnl) : '--'}
-          </strong>
-        </article>
-      </section>
+      <StatsGrid isLoading={isLoading} summary={summary} />
 
       <section className="content-grid">
-        <article className="panel">
-          <h2>Watchlist</h2>
-          <div className="table">
-            {isLoading && <p>Loading market data...</p>}
-            {!isLoading &&
-              summary?.watchlist.map((item) => (
-                <div className="watchlist-row" key={item.symbol}>
-                  <div className="watchlist-main">
-                    <span>{item.symbol}</span>
-                    <span>{gbp.format(item.price)}</span>
-                    <span className={item.change >= 0 ? 'positive' : 'negative'}>
-                      {item.change >= 0 ? '+' : ''}
-                      {item.change.toFixed(2)}%
-                    </span>
-                  </div>
-                  <div className="trade-controls">
-                    <input
-                      className="quantity-input"
-                      min="1"
-                      step="1"
-                      type="number"
-                      value={tradeQuantity[item.symbol] ?? 1}
-                      onChange={(event) =>
-                        setTradeQuantity((current) => ({
-                          ...current,
-                          [item.symbol]: Math.max(1, Number(event.target.value) || 1),
-                        }))
-                      }
-                    />
-                    <button
-                      className="trade-button buy-button"
-                      disabled={activeTradeKey !== null}
-                      onClick={() => handleTrade(item.symbol, 'buy')}
-                      type="button"
-                    >
-                      {activeTradeKey === `buy-${item.symbol}` ? 'Buying...' : 'Buy'}
-                    </button>
-                    <button
-                      className="trade-button sell-button"
-                      disabled={activeTradeKey !== null}
-                      onClick={() => handleTrade(item.symbol, 'sell')}
-                      type="button"
-                    >
-                      {activeTradeKey === `sell-${item.symbol}` ? 'Selling...' : 'Sell'}
-                    </button>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </article>
-
-        <article className="panel">
-          <h2>Holdings P&amp;L</h2>
-          <div className="pnl-table">
-            <div className="pnl-header">
-              <span>Symbol</span>
-              <span>Shares</span>
-              <span>Avg Price</span>
-              <span>Live Price</span>
-              <span>P&amp;L / Share</span>
-              <span>Total P&amp;L</span>
-            </div>
-            {isLoading && <p>Loading positions...</p>}
-            {!isLoading && positionsWithPnl.length === 0 && <p>No shares held yet.</p>}
-            {!isLoading &&
-              positionsWithPnl.map((item) => (
-                <div className="holding-group" key={item.symbol}>
-                  <button
-                    className={`pnl-row pnl-row-button${
-                      selectedHolding === item.symbol ? ' pnl-row-selected' : ''
-                    }`}
-                    onClick={() => toggleHolding(item.symbol)}
-                    type="button"
-                  >
-                    <span>{item.symbol}</span>
-                    <span>{item.quantity}</span>
-                    <span>{gbp.format(item.averagePrice)}</span>
-                    <span>{gbp.format(item.marketPrice)}</span>
-                    <span className={item.pnlPerShare >= 0 ? 'positive' : 'negative'}>
-                      {gbp.format(item.pnlPerShare)}
-                    </span>
-                    <span className={item.totalPnl >= 0 ? 'positive' : 'negative'}>
-                      {gbp.format(item.totalPnl)}
-                    </span>
-                  </button>
-
-                  {selectedHolding === item.symbol && (
-                    <div className="holding-lots">
-                      <p className="holding-lots-title">{item.symbol} Buy Lots</p>
-                      <div className="holding-lots-header">
-                        <span>Lot</span>
-                        <span>Shares</span>
-                        <span>Bought Price</span>
-                      </div>
-                      {item.lots.map((lot, index) => (
-                        <div className="holding-lot-row" key={`${item.symbol}-${index}`}>
-                          <span>#{index + 1}</span>
-                          <span>{lot.quantity}</span>
-                          <span>{gbp.format(lot.boughtPrice)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-          </div>
-        </article>
+        <Watchlist
+          watchlist={summary?.watchlist ?? []}
+          tradeQuantity={tradeQuantity}
+          activeTradeKey={activeTradeKey}
+          isLoading={isLoading}
+          onQuantityChange={(symbol, quantity) =>
+            setTradeQuantity((current) => ({ ...current, [symbol]: quantity }))
+          }
+          onTrade={handleTrade}
+        />
+        <div className="holdings-grid-item">
+          <HoldingsPnl
+            isLoading={isLoading}
+            positionsWithPnl={positionsWithPnl}
+            selectedHolding={selectedHolding}
+            toggleHolding={toggleHolding}
+            tradeQuantity={tradeQuantity}
+            activeTradeKey={activeTradeKey}
+            onQuantityChange={(symbol, quantity) =>
+              setTradeQuantity((current) => ({ ...current, [symbol]: quantity }))
+            }
+            onTrade={handleTrade}
+          />
+        </div>
       </section>
 
       <section className="history-section">
-        <article className="panel">
-          <h2>Trade History</h2>
-          <div className="history-table">
-            <div className="history-header">
-              <span>Time</span>
-              <span>Side</span>
-              <span>Symbol</span>
-              <span>Shares</span>
-              <span>Price</span>
-              <span>Gross</span>
-              <span>Commission</span>
-              <span>Net</span>
-            </div>
-            {isLoading && <p>Loading history...</p>}
-            {!isLoading && summary && summary.history.length === 0 && <p>No trades yet.</p>}
-            {!isLoading &&
-              summary?.history.map((trade) => (
-                <div className="history-row" key={trade.id}>
-                  <span>{dateTime.format(new Date(trade.timestamp))}</span>
-                  <span className={trade.side === 'BUY' ? 'positive' : 'negative'}>
-                    {trade.side}
-                  </span>
-                  <span>{trade.symbol}</span>
-                  <span>{trade.quantity}</span>
-                  <span>{gbp.format(trade.price)}</span>
-                  <span>{gbp.format(trade.grossTotal)}</span>
-                  <span>{gbp.format(trade.commission)}</span>
-                  <span>{gbp.format(trade.netTotal)}</span>
-                </div>
-              ))}
-          </div>
-        </article>
+        <TradeHistory isLoading={isLoading} history={summary?.history ?? []} />
       </section>
     </main>
   );

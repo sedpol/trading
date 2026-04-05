@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 
 type WatchlistItem = {
   symbol: string;
+  companyName: string;
   startPrice: number;
   price: number;
   change: number;
@@ -48,9 +49,26 @@ export class MarketsService {
   private readonly tradeHistory: TradeHistoryItem[] = [];
 
   private readonly watchlist: WatchlistItem[] = [
-    { symbol: 'AAPL', startPrice: 212.48, price: 212.48, change: 0 },
-    { symbol: 'GOOG', startPrice: 176.91, price: 176.91, change: 0 },
-    { symbol: 'NVDA', startPrice: 942.65, price: 942.65, change: 0 },
+    { symbol: 'AAPL', companyName: 'Apple Inc.', startPrice: 212.48, price: 212.48, change: 0 },
+    { symbol: 'GOOG', companyName: 'Alphabet Inc.', startPrice: 176.91, price: 176.91, change: 0 },
+    { symbol: 'NVDA', companyName: 'NVIDIA Corporation', startPrice: 942.65, price: 942.65, change: 0 },
+    { symbol: 'MSFT', companyName: 'Microsoft Corporation', startPrice: 343.12, price: 343.12, change: 0 },
+    { symbol: 'AMZN', companyName: 'Amazon.com, Inc.', startPrice: 176.90, price: 176.90, change: 0 },
+    { symbol: 'META', companyName: 'Meta Platforms, Inc.', startPrice: 462.82, price: 462.82, change: 0 },
+    { symbol: 'ORCL', companyName: 'Oracle Corporation', startPrice: 92.14, price: 92.14, change: 0 },
+    { symbol: 'INTC', companyName: 'Intel Corporation', startPrice: 49.02, price: 49.02, change: 0 },
+    { symbol: 'JPM', companyName: 'JPMorgan Chase & Co.', startPrice: 130.56, price: 130.56, change: 0 },
+    { symbol: 'WMT', companyName: 'Walmart Inc.', startPrice: 151.23, price: 151.23, change: 0 },
+    { symbol: 'PFE', companyName: 'Pfizer Inc.', startPrice: 38.65, price: 38.65, change: 0 },
+    { symbol: 'NFLX', companyName: 'Netflix, Inc.', startPrice: 518.74, price: 518.74, change: 0 },
+    { symbol: 'IBM', companyName: 'International Business Machines Corporation', startPrice: 146.81, price: 146.81, change: 0 },
+    { symbol: 'CRM', companyName: 'Salesforce, Inc.', startPrice: 214.32, price: 214.32, change: 0 },
+    { symbol: 'COIN', companyName: 'Coinbase Global, Inc.', startPrice: 80.45, price: 80.45, change: 0 },
+    { symbol: 'SBUX', companyName: 'Starbucks Corporation', startPrice: 94.88, price: 94.88, change: 0 },
+    { symbol: 'BABA', companyName: 'Alibaba Group Holding Limited', startPrice: 88.07, price: 88.07, change: 0 },
+    { symbol: 'AMD', companyName: 'Advanced Micro Devices, Inc.', startPrice: 122.36, price: 122.36, change: 0 },
+    { symbol: 'PG', companyName: 'The Procter & Gamble Company', startPrice: 149.55, price: 149.55, change: 0 },
+    { symbol: 'UNH', companyName: 'UnitedHealth Group Incorporated', startPrice: 575.28, price: 575.28, change: 0 },
   ];
 
   getSummary(): MarketSummary {
@@ -146,7 +164,7 @@ export class MarketsService {
   updateWatchlistPrices(): MarketSummary {
     this.watchlist.forEach((item) => {
       const direction = Math.random() < 0.5 ? -1 : 1;
-      const delta = Number((Math.random() * 0.99).toFixed(2));
+      const delta = Number((Math.random() * 0.58).toFixed(2));
       const nextPrice = Number(
         Math.max(0, item.price + (item.price * direction * delta) / 100).toFixed(2),
       );
