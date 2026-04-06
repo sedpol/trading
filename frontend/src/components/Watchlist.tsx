@@ -4,10 +4,12 @@ import { BuySell } from './BuySell';
 
 type WatchlistProps = {
   watchlist: WatchlistItem[];
+  heldSymbols: Set<string>;
   tradeQuantity: Record<string, number>;
   activeTradeKey: string | null;
   isLoading: boolean;
   onQuantityChange: (symbol: string, quantity: number) => void;
+  onToggleWatchlist: (symbol: string) => void;
   onTrade: (symbol: string, side: 'buy' | 'sell') => void;
 };
 
@@ -22,10 +24,12 @@ type SortDirection = 'asc' | 'desc';
 
 export function Watchlist({
   watchlist,
+  heldSymbols,
   tradeQuantity,
   activeTradeKey,
   isLoading,
   onQuantityChange,
+  onToggleWatchlist,
   onTrade,
 }: WatchlistProps) {
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
@@ -67,6 +71,7 @@ export function Watchlist({
         {!isLoading && (
           <div className="watchlist-scroll">
             <div className="watchlist-header-row">
+              <span className="watchlist-heart-spacer" aria-hidden="true" />
               <button
                 type="button"
                 className={`sort-header-button${sortKey === 'symbol' ? ' sort-header-active' : ''}`}
@@ -95,26 +100,40 @@ export function Watchlist({
             </div>
             {sortedWatchlist.map((item) => {
               const isExpanded = expandedSymbol === item.symbol;
+              const isAutoFavourite = heldSymbols.has(item.symbol);
               return (
                 <div className="watchlist-row" key={item.symbol}>
-                  <button
-                    type="button"
-                    className="watchlist-row-header"
-                    onClick={() => toggleExpanded(item.symbol)}
-                    aria-expanded={isExpanded}
-                  >
-                    <div className="watchlist-main">
-                      <span>{item.symbol}</span>
-                      <span>{gbp.format(item.price)}</span>
-                      <span className={item.change >= 0 ? 'positive' : 'negative'}>
-                        {item.change >= 0 ? '+' : ''}
-                        {item.change.toFixed(2)}%
+                  <div className="watchlist-row-header-wrap">
+                    <button
+                      type="button"
+                      className="landing-favourite-button landing-favourite-active watchlist-row-heart"
+                      onClick={() => onToggleWatchlist(item.symbol)}
+                      disabled={isAutoFavourite}
+                      aria-label={`Remove from watchlist ${item.symbol}`}
+                      title={isAutoFavourite ? 'Bought shares cannot be removed from watchlist.' : undefined}
+                    >
+                      ♥
+                    </button>
+                    <button
+                      type="button"
+                      className="watchlist-row-header"
+                      onClick={() => toggleExpanded(item.symbol)}
+                      aria-expanded={isExpanded}
+                      aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${item.symbol}`}
+                    >
+                      <div className="watchlist-main">
+                        <span>{item.symbol}</span>
+                        <span>{gbp.format(item.price)}</span>
+                        <span className={item.change >= 0 ? 'positive' : 'negative'}>
+                          {item.change >= 0 ? '+' : ''}
+                          {item.change.toFixed(2)}%
+                        </span>
+                      </div>
+                      <span className="watchlist-chevron">
+                        {isExpanded ? '▾' : '▸'}
                       </span>
-                    </div>
-                    <span className="watchlist-chevron">
-                      {isExpanded ? '▾' : '▸'}
-                    </span>
-                  </button>
+                    </button>
+                  </div>
 
                   {isExpanded && (
                     <>

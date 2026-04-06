@@ -3,17 +3,19 @@ import { describe, expect, it } from 'vitest';
 import { HoldingsPnl } from './HoldingsPnl';
 
 describe('HoldingsPnl', () => {
+  const basePosition = {
+    symbol: 'AAPL',
+    quantity: 2,
+    averagePrice: 200,
+    marketPrice: 210,
+    pnlPerShare: 10,
+    totalPnl: 20,
+    lots: [{ quantity: 2, boughtPrice: 200 }],
+  };
+
   it('sorts holdings by Total P&L and toggles sort direction', () => {
     const positionsWithPnl = [
-      {
-        symbol: 'AAPL',
-        quantity: 2,
-        averagePrice: 200,
-        marketPrice: 210,
-        pnlPerShare: 10,
-        totalPnl: 20,
-        lots: [{ quantity: 2, boughtPrice: 200 }],
-      },
+      basePosition,
       {
         symbol: 'GOOG',
         quantity: 1,
@@ -54,5 +56,39 @@ describe('HoldingsPnl', () => {
     );
 
     expect(reversedRowLabels).toEqual(['GOOG', 'AAPL']);
+  });
+
+  it('shows the company full name in expanded lot title when available', () => {
+    render(
+      <HoldingsPnl
+        isLoading={false}
+        positionsWithPnl={[{ ...basePosition, companyName: 'Apple Inc.' }]}
+        selectedHolding="AAPL"
+        toggleHolding={() => {}}
+        tradeQuantity={{ AAPL: 1 }}
+        activeTradeKey={null}
+        onQuantityChange={() => {}}
+        onTrade={() => {}}
+      />,
+    );
+
+    expect(screen.getByText('Apple Inc. Buy Lots')).toBeInTheDocument();
+  });
+
+  it('falls back to symbol in expanded lot title when company name is unavailable', () => {
+    render(
+      <HoldingsPnl
+        isLoading={false}
+        positionsWithPnl={[{ ...basePosition, companyName: '   ' }]}
+        selectedHolding="AAPL"
+        toggleHolding={() => {}}
+        tradeQuantity={{ AAPL: 1 }}
+        activeTradeKey={null}
+        onQuantityChange={() => {}}
+        onTrade={() => {}}
+      />,
+    );
+
+    expect(screen.getByText('AAPL Buy Lots')).toBeInTheDocument();
   });
 });

@@ -1,7 +1,25 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LandingPage } from './LandingPage';
+
+type SocketEventHandler = (payload?: unknown) => void;
+
+const socketHandlers = new Map<string, SocketEventHandler>();
+const disconnectMock = vi.fn();
+
+vi.mock('socket.io-client', () => ({
+  io: () => ({
+    on: vi.fn((event: string, handler: SocketEventHandler) => {
+      socketHandlers.set(event, handler);
+    }),
+    disconnect: disconnectMock,
+  }),
+}));
+
+const emitSocketEvent = (event: string, payload?: unknown) => {
+  socketHandlers.get(event)?.(payload);
+};
 
 const baseSummary = {
   balance: 20000,
@@ -101,6 +119,9 @@ const baseSummary = {
 
 describe('LandingPage', () => {
   beforeEach(() => {
+    socketHandlers.clear();
+    disconnectMock.mockClear();
+
     let currentSummary = structuredClone(baseSummary);
 
     vi.stubGlobal(
@@ -186,6 +207,11 @@ describe('LandingPage', () => {
     expect(screen.getByText('Apple Inc.')).toBeInTheDocument();
     expect(screen.getByText('Alphabet Inc.')).toBeInTheDocument();
     expect(screen.getByText('Tesla, Inc.')).toBeInTheDocument();
+
+    const disconnectedStatus = screen.getByRole('status', {
+      name: 'Connection status: disconnected',
+    });
+    expect(disconnectedStatus.querySelector('.connection-status-dot-disconnected')).toBeInTheDocument();
 
     const heldButton = screen.getByRole('button', { name: /Remove from watchlist AAPL/i });
     expect(heldButton).toBeDisabled();
@@ -301,5 +327,39 @@ describe('LandingPage', () => {
 
     expect(screen.getByRole('table', { name: 'All markets' })).toBeInTheDocument();
     expect(screen.getByText('Tesla, Inc.')).toBeInTheDocument();
+  });
+
+  it('updates the landing connection status dot from websocket connection events', async () => {
+    render(
+      <MemoryRouter>
+        <LandingPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Tesla, Inc.')).toBeInTheDocument();
+    });
+
+    act(() => {
+      emitSocketEvent('connect');
+    });
+
+    await waitFor(() => {
+      const connectedStatus = screen.getByRole('status', {
+        name: 'Connection status: connected',
+      });
+      expect(connectedStatus.querySelector('.connection-status-dot-connected')).toBeInTheDocument();
+    });
+
+    act(() => {
+      emitSocketEvent('disconnect');
+    });
+
+    await waitFor(() => {
+      const disconnectedStatus = screen.getByRole('status', {
+        name: 'Connection status: disconnected',
+      });
+      expect(disconnectedStatus.querySelector('.connection-status-dot-disconnected')).toBeInTheDocument();
+    });
   });
 });

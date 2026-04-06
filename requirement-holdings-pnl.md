@@ -5,7 +5,7 @@ Date: 2026-04-05
 Feature Number: 1
 Status: Done
 Owner: product-manager
-QA Evidence: Unit PASS (`src/components/HoldingsPnl.test.tsx`, `src/components/Watchlist.test.tsx`); E2E N/A (no dedicated `*.e2e.test.ts` scenario for this isolated scope).
+QA Evidence: Pending implementation and validation.
 
 #### 1. Problem Statement
 - Active traders can view holdings and lot history but cannot take quick action directly from the Holdings P&L section with a clearly defined product flow.
@@ -35,6 +35,7 @@ QA Evidence: Unit PASS (`src/components/HoldingsPnl.test.tsx`, `src/components/W
 - P0:
   - User can place buy/sell from expanded Holding P&L rows.
   - Quantity defaults to 1 and enforces minimum of 1.
+  - Expanded lots title must show company full name as `<Company Full Name> Buy Lots`; if full name is unavailable, fallback to `<SYMBOL> Buy Lots`.
 - P1:
   - Display loading states on active trade action.
   - Keep trade controls consistent with Watchlist behavior.
@@ -43,6 +44,8 @@ QA Evidence: Unit PASS (`src/components/HoldingsPnl.test.tsx`, `src/components/W
 
 #### 6. Acceptance Criteria (Given/When/Then)
 - Given a user expands a holding, when they see Buy Lots, then Buy/Sell controls are visible beneath lots.
+- Given a holding has a company full name, when the user expands that holding, then the lots section title displays `<Company Full Name> Buy Lots`.
+- Given a holding is missing company full name, when the user expands that holding, then the lots section title displays `<SYMBOL> Buy Lots` as fallback.
 - Given a quantity below 1 is entered, when input updates, then quantity is corrected to 1.
 - Given a trade is in progress, when user views controls, then action buttons reflect loading/disabled state.
 
@@ -50,6 +53,7 @@ QA Evidence: Unit PASS (`src/components/HoldingsPnl.test.tsx`, `src/components/W
 - UI/UX requirements:
   - Reuse a shared BuySell component for consistency.
   - Place controls within expanded Holding lots section.
+  - Render expanded lots title with company full name; use symbol fallback when name is absent.
 - States and validation:
   - Quantity min=1, integer input behavior.
   - Active trade state disables concurrent actions.
@@ -59,8 +63,10 @@ QA Evidence: Unit PASS (`src/components/HoldingsPnl.test.tsx`, `src/components/W
 #### 8. Backend Handoff
 - API/data requirements:
   - Use existing buy/sell endpoints with symbol + quantity.
+  - Holdings payload should include a company full name field per symbol for expanded title rendering.
 - Validation/business rules:
   - Preserve existing quantity validations and balance/position checks.
+  - If company full name is null/empty, frontend must render symbol fallback without blocking expansion.
 - Error handling:
   - Return actionable error messages for insufficient funds/shares.
 

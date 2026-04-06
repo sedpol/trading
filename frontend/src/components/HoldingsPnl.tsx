@@ -80,6 +80,11 @@ export function HoldingsPnl({
     setSortDirection('asc');
   };
 
+  const getHoldingLotsTitle = (item: HoldingWithPnl) => {
+    const companyName = item.companyName?.trim();
+    return companyName ? `${companyName} Buy Lots` : `${item.symbol} Buy Lots`;
+  };
+
   return (
     <article className="panel">
       <h2>Holdings P&amp;L</h2>
@@ -165,7 +170,7 @@ export function HoldingsPnl({
 
                 {selectedHolding === item.symbol && (
                   <div className="holding-lots">
-                    <p className="holding-lots-title">{item.symbol} Buy Lots</p>
+                    <p className="holding-lots-title">{getHoldingLotsTitle(item)}</p>
                     <div className="holding-lots-header">
                       <span>Lot</span>
                       <span>Shares</span>

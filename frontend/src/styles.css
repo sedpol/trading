@@ -89,6 +89,30 @@ body {
   background: rgba(17, 38, 66, 0.52);
 }
 
+.portfolio-back-link {
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  padding: 0;
+}
+
+.portfolio-back-link:hover {
+  border-color: rgba(138, 180, 255, 0.45);
+  background: rgba(23, 52, 89, 0.68);
+}
+
+.portfolio-back-link:active {
+  transform: translateY(1px);
+}
+
+.portfolio-back-link:focus-visible {
+  outline: 2px solid #8ab4ff;
+  outline-offset: 2px;
+}
+
+.portfolio-back-icon {
+  display: block;
+}
+
 .landing-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -137,6 +161,13 @@ body {
 
 .landing-markets-header {
   margin-bottom: 12px;
+}
+
+.landing-markets-heading-row {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .landing-markets-header h2 {
@@ -305,6 +336,13 @@ body {
   margin-bottom: 32px;
 }
 
+.hero-top-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
@@ -312,8 +350,48 @@ body {
   gap: 12px;
 }
 
+.connection-status-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 1px solid rgba(138, 180, 255, 0.25);
+  background: rgba(17, 38, 66, 0.52);
+}
+
+.connection-status-dot {
+  display: block;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+}
+
+.connection-status-dot-connected {
+  background: #51d18a;
+  box-shadow: 0 0 0 3px rgba(81, 209, 138, 0.2);
+}
+
+.connection-status-dot-disconnected {
+  background: #e37a7a;
+  box-shadow: 0 0 0 3px rgba(227, 122, 122, 0.2);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .eyebrow {
-  margin: 0 0 12px;
+  margin: 0;
   color: #8ab4ff;
   font-size: 0.85rem;
   letter-spacing: 0.16em;
@@ -442,11 +520,15 @@ body {
 
 .watchlist-header-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  grid-template-columns: 40px repeat(3, minmax(0, 1fr)) auto;
   gap: 14px;
   align-items: center;
   padding: 12px 0 8px;
   border-bottom: 1px solid rgba(156, 179, 209, 0.18);
+}
+
+.watchlist-heart-spacer {
+  width: 40px;
 }
 
 .pnl-header {
@@ -487,6 +569,17 @@ body {
 
 .watchlist-row:last-child {
   border-bottom: 0;
+}
+
+.watchlist-row-header-wrap {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.watchlist-row-heart {
+  align-self: center;
 }
 
 .watchlist-row-header {
@@ -786,6 +879,11 @@ body {
 
   .landing-hero {
     padding: 24px;
+  }
+
+  .portfolio-back-link {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
   }
 
   .landing-grid {

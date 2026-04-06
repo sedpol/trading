@@ -25,6 +25,7 @@ export type WatchlistItem = {
 
 export type Position = {
   symbol: string;
+  companyName?: string;
   quantity: number;
   averagePrice: number;
   lots: PositionLot[];

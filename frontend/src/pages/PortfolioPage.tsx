@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { HoldingsPnl } from '../components/HoldingsPnl';
@@ -11,8 +11,13 @@ import type { Position, Summary } from '../types';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || API_BASE_URL;
 
-const getConnectionVariant = (label: string) =>
-  label === 'Live prices disconnected' ? 'warning' : 'info';
+const getConnectionDotState = (label: string) =>
+  label === 'Live prices connected' ? 'connected' : 'disconnected';
+
+const getConnectionA11yLabel = (label: string) =>
+  label === 'Live prices connected'
+    ? 'Connection status: connected'
+    : 'Connection status: disconnected';
 
 export function PortfolioPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -113,19 +118,54 @@ export function PortfolioPage() {
 
   const positionsWithPnl: HoldingWithPnl[] =
     summary?.positions.map((position) => {
-      const marketPrice =
-        summary.watchlist.find((item) => item.symbol === position.symbol)?.price ??
-        position.averagePrice;
+      const market = summary.watchlist.find((item) => item.symbol === position.symbol);
+      const marketPrice = market?.price ?? position.averagePrice;
+      const companyName = position.companyName?.trim() ? position.companyName : market?.companyName;
       const pnlPerShare = marketPrice - position.averagePrice;
       const totalPnl = pnlPerShare * position.quantity;
 
       return {
         ...position,
+        companyName,
         marketPrice,
         pnlPerShare,
         totalPnl,
       };
     }) ?? [];
+
+  const heldSymbols = useMemo(() => {
+    const symbols = summary?.positions
+      .filter((position) => position.quantity > 0)
+      .map((position) => position.symbol) ?? [];
+
+    return new Set(symbols);
+  }, [summary?.positions]);
+
+  const toggleWatchlist = async (symbol: string) => {
+    if (heldSymbols.has(symbol)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/markets/watchlist`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ symbol }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update watchlist: ${response.statusText}`);
+      }
+
+      const data: Summary = await response.json();
+      setSummary(data);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to update watchlist.');
+    }
+  };
 
   const handleTrade = async (symbol: string, side: 'buy' | 'sell') => {
     const quantity = tradeQuantity[symbol] ?? 1;
@@ -167,16 +207,43 @@ export function PortfolioPage() {
   return (
     <main className="app-shell">
       <section className="hero">
-        <p className="eyebrow">My Portfolio</p>
+        <div className="hero-top-header">
+          <Link className="portfolio-home-link portfolio-back-link" to="/" aria-label="Back to Landing">
+            <svg
+              aria-hidden="true"
+              className="portfolio-back-icon"
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+            >
+              <path
+                d="M15.5 4.5L8 12l7.5 7.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </Link>
+          <p className="eyebrow">My Portfolio</p>
+        </div>
         <h1>Track your markets, positions, and performance.</h1>
         <p className="lead">
           Use live pricing, holdings P&amp;L, and trade history to manage your strategy.
         </p>
         <div className="hero-actions">
-          <MessageBanner compact message={connectionLabel} variant={getConnectionVariant(connectionLabel)} />
-          <Link className="portfolio-home-link" to="/">
-            Back to Landing
-          </Link>
+          <div
+            className="connection-status-indicator"
+            role="status"
+            aria-live="polite"
+            aria-label={getConnectionA11yLabel(connectionLabel)}
+          >
+            <span
+              aria-hidden="true"
+              className={`connection-status-dot connection-status-dot-${getConnectionDotState(connectionLabel)}`}
+            />
+          </div>
         </div>
       </section>
 
@@ -193,12 +260,14 @@ export function PortfolioPage() {
       <section className="content-grid">
         <Watchlist
           watchlist={summary?.watchlist ?? []}
+          heldSymbols={heldSymbols}
           tradeQuantity={tradeQuantity}
           activeTradeKey={activeTradeKey}
           isLoading={isLoading}
           onQuantityChange={(symbol, quantity) =>
             setTradeQuantity((current) => ({ ...current, [symbol]: quantity }))
           }
+          onToggleWatchlist={toggleWatchlist}
           onTrade={handleTrade}
         />
         <div className="holdings-grid-item">

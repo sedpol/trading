@@ -1,10 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import { BuySell } from '../components/BuySell';
 import { MessageBanner } from '../components/MessageBanner';
 import type { Summary } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || API_BASE_URL;
+
+const getConnectionDotState = (label: string) =>
+  label === 'Live prices connected' ? 'connected' : 'disconnected';
+
+const getConnectionA11yLabel = (label: string) =>
+  label === 'Live prices connected'
+    ? 'Connection status: connected'
+    : 'Connection status: disconnected';
 
 type SortKey = 'symbol' | 'companyName' | 'price' | 'change';
 type SortDirection = 'asc' | 'desc';
@@ -18,6 +28,7 @@ export function LandingPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [isLoadingMarkets, setIsLoadingMarkets] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [connectionLabel, setConnectionLabel] = useState('Connecting...');
   const [tradeStatus, setTradeStatus] = useState<string | null>(null);
   const [tradeQuantity, setTradeQuantity] = useState<Record<string, number>>({});
   const [activeTradeKey, setActiveTradeKey] = useState<string | null>(null);
@@ -70,6 +81,40 @@ export function LandingPage() {
     };
 
     fetchSummary();
+  }, []);
+
+  useEffect(() => {
+    if (SOCKET_URL === 'none') {
+      setConnectionLabel('Live prices disabled');
+      return;
+    }
+
+    const socket = io(SOCKET_URL, {
+      transports: ['websocket'],
+    });
+
+    socket.on('connect', () => {
+      setConnectionLabel('Live prices connected');
+      setError(null);
+    });
+
+    socket.on('market.update', (data: Summary) => {
+      setSummary(data);
+      setIsLoadingMarkets(false);
+    });
+
+    socket.on('connect_error', () => {
+      setConnectionLabel('Live prices disconnected');
+      setError('WebSocket connection failed');
+    });
+
+    socket.on('disconnect', () => {
+      setConnectionLabel('Live prices disconnected');
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   const heldSymbols = useMemo(() => {
@@ -227,7 +272,20 @@ export function LandingPage() {
 
       <section className="landing-markets" id="markets">
         <div className="landing-markets-header">
-          <h2>All Markets</h2>
+          <div className="landing-markets-heading-row">
+            <h2>All Markets</h2>
+            <div
+              className="connection-status-indicator"
+              role="status"
+              aria-live="polite"
+              aria-label={getConnectionA11yLabel(connectionLabel)}
+            >
+              <span
+                aria-hidden="true"
+                className={`connection-status-dot connection-status-dot-${getConnectionDotState(connectionLabel)}`}
+              />
+            </div>
+          </div>
           <p>Bought shares are added to watchlist automatically.</p>
         </div>
 
@@ -249,7 +307,7 @@ export function LandingPage() {
           <div className="landing-markets-table-scroll">
             <div className="landing-markets-table" role="table" aria-label="All markets">
             <div className="landing-market-row landing-market-header" role="row">
-              <span>Watchlist</span>
+              <span></span>
               <button
                 type="button"
                 className={`sort-header-button${sortKey === 'symbol' ? ' sort-header-active' : ''}`}

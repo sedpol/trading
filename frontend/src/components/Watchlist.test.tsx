@@ -13,15 +13,18 @@ describe('Watchlist', () => {
 
   it('renders a watchlist item and expands to show the company full name', async () => {
     const onQuantityChange = vi.fn();
+    const onToggleWatchlist = vi.fn();
     const onTrade = vi.fn();
 
     render(
       <Watchlist
         watchlist={[watchlistItem]}
+        heldSymbols={new Set()}
         tradeQuantity={{ AAPL: 1 }}
         activeTradeKey={null}
         isLoading={false}
         onQuantityChange={onQuantityChange}
+        onToggleWatchlist={onToggleWatchlist}
         onTrade={onTrade}
       />,
     );
@@ -29,7 +32,10 @@ describe('Watchlist', () => {
     expect(screen.getByText('AAPL')).toBeInTheDocument();
     expect(screen.getByText('£212.48')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /AAPL/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove from watchlist AAPL' }));
+    expect(onToggleWatchlist).toHaveBeenCalledWith('AAPL');
+
+    fireEvent.click(screen.getByRole('button', { name: /Expand AAPL/i }));
 
     expect(await screen.findByText('Apple Inc.')).toBeInTheDocument();
     expect(screen.getByRole('spinbutton')).toHaveValue(1);
@@ -52,14 +58,17 @@ describe('Watchlist', () => {
       },
     ];
     const onQuantityChange = vi.fn();
+    const onToggleWatchlist = vi.fn();
     const onTrade = vi.fn();
     const { container } = render(
       <Watchlist
         watchlist={watchlistTwo}
+        heldSymbols={new Set()}
         tradeQuantity={{ AAPL: 1, GOOG: 1 }}
         activeTradeKey={null}
         isLoading={false}
         onQuantityChange={onQuantityChange}
+        onToggleWatchlist={onToggleWatchlist}
         onTrade={onTrade}
       />,
     );
@@ -80,5 +89,31 @@ describe('Watchlist', () => {
     const sortedDesc = Array.from(container.querySelectorAll('.watchlist-row-header .watchlist-main > span:first-child'))
       .map((node) => node.textContent);
     expect(sortedDesc).toEqual(['GOOG', 'AAPL']);
+  });
+
+  it('disables watchlist removal for held symbols and shows the protection explanation', () => {
+    const onQuantityChange = vi.fn();
+    const onToggleWatchlist = vi.fn();
+    const onTrade = vi.fn();
+
+    render(
+      <Watchlist
+        watchlist={[watchlistItem]}
+        heldSymbols={new Set(['AAPL'])}
+        tradeQuantity={{ AAPL: 1 }}
+        activeTradeKey={null}
+        isLoading={false}
+        onQuantityChange={onQuantityChange}
+        onToggleWatchlist={onToggleWatchlist}
+        onTrade={onTrade}
+      />,
+    );
+
+    const toggleButton = screen.getByRole('button', { name: 'Remove from watchlist AAPL' });
+    expect(toggleButton).toBeDisabled();
+    expect(toggleButton).toHaveAttribute('title', 'Bought shares cannot be removed from watchlist.');
+
+    fireEvent.click(toggleButton);
+    expect(onToggleWatchlist).not.toHaveBeenCalled();
   });
 });
