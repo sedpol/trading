@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AuthProvider } from '../auth/AuthProvider';
+import { AUTH_STORAGE_KEY } from '../auth/constants';
 import { LandingPage } from './LandingPage';
 
 type SocketEventHandler = (payload?: unknown) => void;
@@ -19,6 +21,31 @@ vi.mock('socket.io-client', () => ({
 
 const emitSocketEvent = (event: string, payload?: unknown) => {
   socketHandlers.get(event)?.(payload);
+};
+
+const authenticatedSessionResponse = () => ({
+  ok: true,
+  json: async () => ({
+    user: {
+      identifier: 'demo-user',
+    },
+  }),
+}) as Response;
+
+const renderLandingPage = (authenticated = true) => {
+  if (authenticated) {
+    window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ identifier: 'demo-user' }));
+  } else {
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  }
+
+  return render(
+    <MemoryRouter>
+      <AuthProvider>
+        <LandingPage />
+      </AuthProvider>
+    </MemoryRouter>,
+  );
 };
 
 const baseSummary = {
@@ -121,12 +148,17 @@ describe('LandingPage', () => {
   beforeEach(() => {
     socketHandlers.clear();
     disconnectMock.mockClear();
+    window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ identifier: 'demo-user' }));
 
     let currentSummary = structuredClone(baseSummary);
 
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo, init?: RequestInit) => {
+        if (typeof input === 'string' && input.endsWith('/auth/session')) {
+          return authenticatedSessionResponse();
+        }
+
         if (typeof input === 'string' && input.endsWith('/markets/watchlist')) {
           const body = JSON.parse(init?.body as string) as { symbol: string };
           const existing = currentSummary.watchlist.some((item) => item.symbol === body.symbol);
@@ -190,15 +222,12 @@ describe('LandingPage', () => {
   });
 
   afterEach(() => {
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
     vi.restoreAllMocks();
   });
 
   it('shows all markets and auto-adds held symbols to watchlist', async () => {
-    const { container } = render(
-      <MemoryRouter>
-        <LandingPage />
-      </MemoryRouter>,
-    );
+    const { container } = renderLandingPage();
 
     await waitFor(() => {
       expect(screen.getByText('All Markets')).toBeInTheDocument();
@@ -227,11 +256,7 @@ describe('LandingPage', () => {
   });
 
   it('allows heart toggling to move a symbol into watchlist', async () => {
-    const { container } = render(
-      <MemoryRouter>
-        <LandingPage />
-      </MemoryRouter>,
-    );
+    const { container } = renderLandingPage();
 
     await waitFor(() => {
       expect(screen.getByText('Tesla, Inc.')).toBeInTheDocument();
@@ -251,11 +276,7 @@ describe('LandingPage', () => {
   });
 
   it('sorts all markets by price and toggles direction', async () => {
-    const { container } = render(
-      <MemoryRouter>
-        <LandingPage />
-      </MemoryRouter>,
-    );
+    const { container } = renderLandingPage();
 
     await waitFor(() => {
       expect(screen.getByText('Tesla, Inc.')).toBeInTheDocument();
@@ -275,11 +296,7 @@ describe('LandingPage', () => {
   });
 
   it('expands a market row and shows buy sell controls', async () => {
-    const { container } = render(
-      <MemoryRouter>
-        <LandingPage />
-      </MemoryRouter>,
-    );
+    const { container } = renderLandingPage();
 
     await waitFor(() => {
       expect(screen.getByText('Tesla, Inc.')).toBeInTheDocument();
@@ -305,11 +322,7 @@ describe('LandingPage', () => {
   });
 
   it('shows the portfolio-style error banner and keeps the market list visible after a failed trade', async () => {
-    render(
-      <MemoryRouter>
-        <LandingPage />
-      </MemoryRouter>,
-    );
+    renderLandingPage();
 
     await waitFor(() => {
       expect(screen.getByText('Tesla, Inc.')).toBeInTheDocument();
@@ -330,11 +343,7 @@ describe('LandingPage', () => {
   });
 
   it('updates the landing connection status dot from websocket connection events', async () => {
-    render(
-      <MemoryRouter>
-        <LandingPage />
-      </MemoryRouter>,
-    );
+    renderLandingPage();
 
     await waitFor(() => {
       expect(screen.getByText('Tesla, Inc.')).toBeInTheDocument();
@@ -361,5 +370,35 @@ describe('LandingPage', () => {
       });
       expect(disconnectedStatus.querySelector('.connection-status-dot-disconnected')).toBeInTheDocument();
     });
+  });
+
+  it('does not render watchlist chips or counts for guests', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo) => {
+        if (typeof input === 'string' && input.endsWith('/auth/session')) {
+          return {
+            ok: false,
+            status: 401,
+            json: async () => ({ message: 'Unauthorized' }),
+          } as Response;
+        }
+
+        return {
+          ok: true,
+          json: async () => structuredClone(baseSummary),
+        } as Response;
+      }),
+    );
+
+    renderLandingPage(false);
+
+    await waitFor(() => {
+      expect(screen.getByText('All Markets')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Watchlist locked')).toBeInTheDocument();
+    expect(screen.queryByText('Showing 5 symbols.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Remove from watchlist AAPL/i })).not.toBeInTheDocument();
   });
 });

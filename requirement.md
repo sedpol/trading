@@ -74,3 +74,4 @@ Owner: product-manager
 
 - Holdings P&L page requirements: `requirement-holdings-pnl.md`
 - Landing and My Portfolio page requirements: `requirement-landing-portfolio.md`
+- Login and watchlist access requirements: `requirement-login-watchlist.md`

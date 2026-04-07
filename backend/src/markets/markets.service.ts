@@ -42,13 +42,19 @@ type MarketSummary = {
   history: TradeHistoryItem[];
 };
 
+type UserMarketState = {
+  cashBalance: number;
+  manualWatchlistSymbols: Set<string>;
+  positionLots: Record<string, PositionLot[]>;
+  tradeHistory: TradeHistoryItem[];
+};
+
+const INITIAL_CASH_BALANCE = 20000;
+const DEFAULT_WATCHLIST_SYMBOLS = ['AAPL', 'GOOG', 'MSFT', 'NVDA', 'AMZN'];
+
 @Injectable()
 export class MarketsService {
-  private cashBalance = 20000;
-  private readonly manualWatchlistSymbols = new Set<string>(['AAPL', 'GOOG', 'NVDA', 'MSFT', 'AMZN']);
-
-  private readonly positionLots: Record<string, PositionLot[]> = {};
-  private readonly tradeHistory: TradeHistoryItem[] = [];
+  private readonly userStates = new Map<string, UserMarketState>();
 
   private readonly allMarkets: WatchlistItem[] = [
     { symbol: 'AAPL', companyName: 'Apple Inc.', startPrice: 212.48, price: 212.48, change: 0 },
@@ -73,37 +79,21 @@ export class MarketsService {
     { symbol: 'UNH', companyName: 'UnitedHealth Group Incorporated', startPrice: 575.28, price: 575.28, change: 0 },
   ];
 
-  getSummary(): MarketSummary {
+  getSummary(userId?: string): MarketSummary {
+    const state = userId ? this.getOrCreateUserState(userId) : this.createPublicState();
+
+    return this.buildSummary(state);
+  }
+
+  toggleWatchlist(userId: string, symbol: string) {
+    const state = this.getOrCreateUserState(userId);
     return {
-      balance: this.calculateBalance(),
-      cashBalance: Number(this.cashBalance.toFixed(2)),
-      dailyPnl: this.calculateDailyPnl(),
-      watchlist: this.getSelectedWatchlist(),
-      allMarkets: this.allMarkets,
-      positions: this.getPositions(),
-      history: [...this.tradeHistory].reverse(),
+      ...this.updateWatchlistState(state, symbol),
     };
   }
 
-  toggleWatchlist(symbol: string) {
-    const normalizedSymbol = this.validateSymbol(symbol);
-
-    this.findMarketItem(normalizedSymbol);
-
-    if (this.getOwnedQuantity(normalizedSymbol) > 0) {
-      return this.getSummary();
-    }
-
-    if (this.manualWatchlistSymbols.has(normalizedSymbol)) {
-      this.manualWatchlistSymbols.delete(normalizedSymbol);
-    } else {
-      this.manualWatchlistSymbols.add(normalizedSymbol);
-    }
-
-    return this.getSummary();
-  }
-
-  buyShares(symbol: string, quantity: number) {
+  buyShares(userId: string, symbol: string, quantity: number) {
+    const state = this.getOrCreateUserState(userId);
     const normalizedSymbol = this.validateSymbol(symbol);
     const normalizedQuantity = this.validateQuantity(quantity);
     const marketItem = this.findMarketItem(normalizedSymbol);
@@ -111,20 +101,21 @@ export class MarketsService {
     const commission = this.calculateCommission('BUY', grossTotal);
     const netTotal = Number((grossTotal + commission).toFixed(2));
 
-    if (netTotal > this.cashBalance) {
+    if (netTotal > state.cashBalance) {
       throw new BadRequestException('Not enough cash to complete this buy order.');
     }
 
-    const lots = this.getOrCreateLots(normalizedSymbol);
+    const lots = this.getOrCreateLots(state, normalizedSymbol);
     lots.push({
       quantity: normalizedQuantity,
       boughtPrice: marketItem.price,
     });
 
-    this.manualWatchlistSymbols.add(normalizedSymbol);
+    state.manualWatchlistSymbols.add(normalizedSymbol);
 
-    this.cashBalance = Number((this.cashBalance - netTotal).toFixed(2));
+    state.cashBalance = Number((state.cashBalance - netTotal).toFixed(2));
     this.recordTrade(
+      state,
       normalizedSymbol,
       'BUY',
       normalizedQuantity,
@@ -134,14 +125,15 @@ export class MarketsService {
       netTotal,
     );
 
-    return this.getSummary();
+    return this.buildSummary(state);
   }
 
-  sellShares(symbol: string, quantity: number) {
+  sellShares(userId: string, symbol: string, quantity: number) {
+    const state = this.getOrCreateUserState(userId);
     const normalizedSymbol = this.validateSymbol(symbol);
     const normalizedQuantity = this.validateQuantity(quantity);
     const marketItem = this.findMarketItem(normalizedSymbol);
-    const lots = this.positionLots[normalizedSymbol] ?? [];
+    const lots = state.positionLots[normalizedSymbol] ?? [];
     const ownedQuantity = lots.reduce((total, lot) => total + lot.quantity, 0);
 
     if (ownedQuantity < normalizedQuantity) {
@@ -163,15 +155,16 @@ export class MarketsService {
     }
 
     if (lots.length === 0) {
-      delete this.positionLots[normalizedSymbol];
+      delete state.positionLots[normalizedSymbol];
     }
 
     const grossTotal = Number((marketItem.price * normalizedQuantity).toFixed(2));
     const commission = this.calculateCommission('SELL', grossTotal);
     const netTotal = Number((grossTotal - commission).toFixed(2));
 
-    this.cashBalance = Number((this.cashBalance + netTotal).toFixed(2));
+    state.cashBalance = Number((state.cashBalance + netTotal).toFixed(2));
     this.recordTrade(
+      state,
       normalizedSymbol,
       'SELL',
       normalizedQuantity,
@@ -181,7 +174,7 @@ export class MarketsService {
       netTotal,
     );
 
-    return this.getSummary();
+    return this.buildSummary(state);
   }
 
   updateWatchlistPrices(): MarketSummary {
@@ -203,8 +196,63 @@ export class MarketsService {
     return this.getSummary();
   }
 
-  private getPositions(): Position[] {
-    return Object.entries(this.positionLots)
+  private buildSummary(state: UserMarketState): MarketSummary {
+    return {
+      balance: this.calculateBalance(state),
+      cashBalance: Number(state.cashBalance.toFixed(2)),
+      dailyPnl: this.calculateDailyPnl(state),
+      watchlist: this.getSelectedWatchlist(state),
+      allMarkets: this.allMarkets,
+      positions: this.getPositions(state),
+      history: [...state.tradeHistory].reverse(),
+    };
+  }
+
+  private createPublicState(): UserMarketState {
+    return {
+      cashBalance: INITIAL_CASH_BALANCE,
+      manualWatchlistSymbols: new Set(DEFAULT_WATCHLIST_SYMBOLS),
+      positionLots: {},
+      tradeHistory: [],
+    };
+  }
+
+  private getOrCreateUserState(userId: string): UserMarketState {
+    let state = this.userStates.get(userId);
+
+    if (!state) {
+      state = {
+        cashBalance: INITIAL_CASH_BALANCE,
+        manualWatchlistSymbols: new Set(DEFAULT_WATCHLIST_SYMBOLS),
+        positionLots: {},
+        tradeHistory: [],
+      };
+      this.userStates.set(userId, state);
+    }
+
+    return state;
+  }
+
+  private updateWatchlistState(state: UserMarketState, symbol: string) {
+    const normalizedSymbol = this.validateSymbol(symbol);
+
+    this.findMarketItem(normalizedSymbol);
+
+    if (this.getOwnedQuantity(state, normalizedSymbol) > 0) {
+      return this.buildSummary(state);
+    }
+
+    if (state.manualWatchlistSymbols.has(normalizedSymbol)) {
+      state.manualWatchlistSymbols.delete(normalizedSymbol);
+    } else {
+      state.manualWatchlistSymbols.add(normalizedSymbol);
+    }
+
+    return this.buildSummary(state);
+  }
+
+  private getPositions(state: UserMarketState): Position[] {
+    return Object.entries(state.positionLots)
       .map(([symbol, lots]) => {
         const quantity = lots.reduce((total, lot) => total + lot.quantity, 0);
 
@@ -228,10 +276,10 @@ export class MarketsService {
       .sort((left, right) => left.symbol.localeCompare(right.symbol));
   }
 
-  private getSelectedWatchlist() {
-    const selectedSymbols = new Set(this.manualWatchlistSymbols);
+  private getSelectedWatchlist(state: UserMarketState) {
+    const selectedSymbols = new Set(state.manualWatchlistSymbols);
 
-    this.getPositions().forEach((position) => {
+    this.getPositions(state).forEach((position) => {
       if (position.quantity > 0) {
         selectedSymbols.add(position.symbol);
       }
@@ -240,19 +288,19 @@ export class MarketsService {
     return this.allMarkets.filter((item) => selectedSymbols.has(item.symbol));
   }
 
-  private calculateBalance() {
-    const positionsValue = this.getPositions().reduce((total, position) => {
+  private calculateBalance(state: UserMarketState) {
+    const positionsValue = this.getPositions(state).reduce((total, position) => {
       const marketItem = this.allMarkets.find((item) => item.symbol === position.symbol);
       const currentPrice = marketItem?.price ?? position.averagePrice;
       return total + position.quantity * currentPrice;
     }, 0);
 
-    return Number((this.cashBalance + positionsValue).toFixed(2));
+    return Number((state.cashBalance + positionsValue).toFixed(2));
   }
 
-  private calculateDailyPnl() {
+  private calculateDailyPnl(state: UserMarketState) {
     return Number(
-      this.getPositions()
+      this.getPositions(state)
         .reduce((total, position) => {
           const marketItem = this.allMarkets.find((item) => item.symbol === position.symbol);
 
@@ -294,16 +342,16 @@ export class MarketsService {
     return marketItem;
   }
 
-  private getOwnedQuantity(symbol: string) {
-    return (this.positionLots[symbol] ?? []).reduce((total, lot) => total + lot.quantity, 0);
+  private getOwnedQuantity(state: UserMarketState, symbol: string) {
+    return (state.positionLots[symbol] ?? []).reduce((total, lot) => total + lot.quantity, 0);
   }
 
-  private getOrCreateLots(symbol: string) {
-    if (!this.positionLots[symbol]) {
-      this.positionLots[symbol] = [];
+  private getOrCreateLots(state: UserMarketState, symbol: string) {
+    if (!state.positionLots[symbol]) {
+      state.positionLots[symbol] = [];
     }
 
-    return this.positionLots[symbol];
+    return state.positionLots[symbol];
   }
 
   private calculateCommission(side: 'BUY' | 'SELL', grossTotal: number) {
@@ -312,6 +360,7 @@ export class MarketsService {
   }
 
   private recordTrade(
+    state: UserMarketState,
     symbol: string,
     side: 'BUY' | 'SELL',
     quantity: number,
@@ -320,8 +369,8 @@ export class MarketsService {
     commission: number,
     netTotal: number,
   ) {
-    this.tradeHistory.push({
-      id: `${Date.now()}-${this.tradeHistory.length + 1}`,
+    state.tradeHistory.push({
+      id: `${Date.now()}-${state.tradeHistory.length + 1}`,
       symbol,
       side,
       quantity,

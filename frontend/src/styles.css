@@ -75,6 +75,8 @@ body {
   border-radius: 999px;
   text-decoration: none;
   font-weight: 600;
+  font: inherit;
+  cursor: pointer;
 }
 
 .landing-primary-cta {
@@ -216,6 +218,15 @@ body {
   font-size: 0.84rem;
 }
 
+.landing-watchlist-locked {
+  display: grid;
+  gap: 10px;
+}
+
+.landing-watchlist-locked .landing-primary-cta {
+  justify-self: start;
+}
+
 .landing-markets-table-scroll {
   max-height: min(32rem, 70vh);
   overflow-x: auto;
@@ -330,6 +341,111 @@ body {
   max-width: 1120px;
   margin: 0 auto;
   padding: 48px 20px 72px;
+}
+
+.auth-loading-shell,
+.auth-page-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.auth-loading-shell {
+  color: #d8e6ff;
+}
+
+.auth-card {
+  width: min(460px, 100%);
+  border: 1px solid rgba(138, 180, 255, 0.2);
+  border-radius: 20px;
+  background: rgba(9, 26, 50, 0.9);
+  box-shadow: 0 20px 60px rgba(2, 8, 19, 0.42);
+  padding: 24px;
+}
+
+.auth-kicker {
+  margin: 0;
+  color: #95cbff;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.76rem;
+}
+
+.auth-card h1 {
+  margin: 10px 0;
+  font-size: clamp(1.4rem, 2.4vw, 2rem);
+  line-height: 1.15;
+}
+
+.auth-helper-copy {
+  margin: 0;
+  color: #b9cde9;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.auth-form {
+  margin-top: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.auth-field {
+  display: grid;
+  gap: 6px;
+}
+
+.auth-field label {
+  color: #dce9ff;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.auth-field input {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 10px;
+  border: 1px solid rgba(138, 180, 255, 0.24);
+  background: rgba(5, 19, 37, 0.9);
+  color: #f4f7fb;
+  padding: 10px 12px;
+}
+
+.auth-field input:focus-visible {
+  outline: 2px solid #8ab4ff;
+  outline-offset: 1px;
+}
+
+.auth-field-error,
+.auth-submit-error {
+  margin: 0;
+  color: #ffb8b8;
+  font-size: 0.88rem;
+}
+
+.auth-submit-button {
+  min-height: 42px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #2da167, #1f7f53);
+  color: #f4fff9;
+  font-weight: 700;
+  font: inherit;
+  cursor: pointer;
+}
+
+.auth-submit-button:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.auth-home-link-wrap {
+  margin: 16px 0 0;
+}
+
+.auth-home-link {
+  color: #d8e6ff;
 }
 
 .hero {

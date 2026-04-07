@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
+import { useAuth } from '../auth/AuthProvider';
 import { HoldingsPnl } from '../components/HoldingsPnl';
 import { MessageBanner } from '../components/MessageBanner';
 import { StatsGrid } from '../components/StatsGrid';
@@ -20,6 +21,8 @@ const getConnectionA11yLabel = (label: string) =>
     : 'Connection status: disconnected';
 
 export function PortfolioPage() {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +31,37 @@ export function PortfolioPage() {
   const [tradeQuantity, setTradeQuantity] = useState<Record<string, number>>({});
   const [activeTradeKey, setActiveTradeKey] = useState<string | null>(null);
   const [selectedHolding, setSelectedHolding] = useState<string | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleUnauthorized = useCallback(async (pendingAction: string) => {
+    await logout();
+    navigate('/login', {
+      replace: true,
+      state: {
+        from: '/portfolio',
+        reason: 'session-expired',
+        pendingAction,
+      },
+    });
+  }, [logout, navigate]);
+
+  const fetchProtected = useCallback(async (
+    path: string,
+    init: RequestInit | undefined,
+    pendingAction: string,
+  ) => {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      credentials: 'include',
+    });
+
+    if (response.status === 401) {
+      await handleUnauthorized(pendingAction);
+      throw new Error('Session expired. Please sign in again.');
+    }
+
+    return response;
+  }, [handleUnauthorized]);
 
   useEffect(() => {
     if (!tradeStatus) {
@@ -57,7 +91,7 @@ export function PortfolioPage() {
     const fetchSummary = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch(`${API_BASE_URL}/markets/summary`);
+        const response = await fetchProtected('/markets/summary', undefined, 'load-summary');
 
         if (!response.ok) {
           throw new Error(`Failed to fetch: ${response.statusText}`);
@@ -74,7 +108,7 @@ export function PortfolioPage() {
     };
 
     fetchSummary();
-  }, []);
+  }, [fetchProtected]);
 
   useEffect(() => {
     if (SOCKET_URL === 'none') {
@@ -84,6 +118,7 @@ export function PortfolioPage() {
 
     const socket = io(SOCKET_URL, {
       transports: ['websocket'],
+      withCredentials: true,
     });
 
     socket.on('connect', () => {
@@ -147,13 +182,13 @@ export function PortfolioPage() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/markets/watchlist`, {
+      const response = await fetchProtected('/markets/watchlist', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ symbol }),
-      });
+      }, `watchlist-toggle:${symbol}`);
 
       if (!response.ok) {
         throw new Error(`Failed to update watchlist: ${response.statusText}`);
@@ -174,13 +209,13 @@ export function PortfolioPage() {
       setActiveTradeKey(`${side}-${symbol}`);
       setTradeStatus(null);
 
-      const response = await fetch(`${API_BASE_URL}/markets/${side}`, {
+      const response = await fetchProtected(`/markets/${side}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ symbol, quantity }),
-      });
+      }, `trade-${side}:${symbol}`);
 
       const data = await response.json();
 
@@ -202,6 +237,12 @@ export function PortfolioPage() {
 
   const toggleHolding = (symbol: string) => {
     setSelectedHolding((current) => (current === symbol ? null : symbol));
+  };
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    await logout();
+    navigate('/login', { replace: true });
   };
 
   return (
@@ -244,6 +285,9 @@ export function PortfolioPage() {
               className={`connection-status-dot connection-status-dot-${getConnectionDotState(connectionLabel)}`}
             />
           </div>
+          <button type="button" className="landing-secondary-cta" onClick={handleLogout} disabled={isLoggingOut}>
+            {isLoggingOut ? 'Logging out...' : 'Log out'}
+          </button>
         </div>
       </section>
 

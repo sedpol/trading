@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
+import { useAuth } from '../auth/AuthProvider';
 import { BuySell } from '../components/BuySell';
 import { MessageBanner } from '../components/MessageBanner';
 import type { Summary } from '../types';
@@ -25,6 +26,8 @@ const gbp = new Intl.NumberFormat('en-GB', {
 });
 
 export function LandingPage() {
+  const { isAuthenticated, isAuthResolved, logout } = useAuth();
+  const navigate = useNavigate();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [isLoadingMarkets, setIsLoadingMarkets] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +67,9 @@ export function LandingPage() {
     const fetchSummary = async () => {
       try {
         setIsLoadingMarkets(true);
-        const response = await fetch(`${API_BASE_URL}/markets/summary`);
+        const response = await fetch(`${API_BASE_URL}/markets/summary`, {
+          credentials: 'include',
+        });
 
         if (!response.ok) {
           throw new Error(`Failed to fetch: ${response.statusText}`);
@@ -91,6 +96,7 @@ export function LandingPage() {
 
     const socket = io(SOCKET_URL, {
       transports: ['websocket'],
+      withCredentials: true,
     });
 
     socket.on('connect', () => {
@@ -126,13 +132,15 @@ export function LandingPage() {
   }, [summary?.positions]);
 
   const watchlistSymbols = useMemo(
-    () => new Set(summary?.watchlist.map((item) => item.symbol) ?? []),
-    [summary?.watchlist],
+    () => new Set(isAuthenticated ? summary?.watchlist.map((item) => item.symbol) ?? [] : []),
+    [isAuthenticated, summary?.watchlist],
   );
 
   const watchlistMarkets = useMemo(
-    () => [...(summary?.watchlist ?? [])].sort((left, right) => left.symbol.localeCompare(right.symbol)),
-    [summary?.watchlist],
+    () => (isAuthenticated
+      ? [...(summary?.watchlist ?? [])].sort((left, right) => left.symbol.localeCompare(right.symbol))
+      : []),
+    [isAuthenticated, summary?.watchlist],
   );
 
   const sortedMarkets = useMemo(() => {
@@ -146,7 +154,7 @@ export function LandingPage() {
 
       return (left[sortKey] - right[sortKey]) * direction;
     });
-  }, [sortDirection, sortKey, summary?.watchlist]);
+  }, [sortDirection, sortKey, summary?.allMarkets]);
 
   const updateSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -170,6 +178,7 @@ export function LandingPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ symbol }),
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -185,6 +194,11 @@ export function LandingPage() {
   };
 
   const handleTrade = async (symbol: string, side: 'buy' | 'sell') => {
+    if (!isAuthenticated) {
+      redirectToLogin();
+      return;
+    }
+
     const quantity = tradeQuantity[symbol] ?? 1;
 
     try {
@@ -197,7 +211,13 @@ export function LandingPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ symbol, quantity }),
+        credentials: 'include',
       });
+
+      if (response.status === 401) {
+        redirectToLogin();
+        return;
+      }
 
       const data = await response.json();
 
@@ -221,6 +241,19 @@ export function LandingPage() {
     setExpandedMarket((current) => (current === symbol ? null : symbol));
   };
 
+  const redirectToLogin = () => {
+    navigate('/login', {
+      state: {
+        from: '/portfolio',
+      },
+    });
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
+
   return (
     <main className="landing-shell">
       <section className="landing-hero">
@@ -231,9 +264,20 @@ export function LandingPage() {
           quickly from a focused portfolio workflow.
         </p>
         <div className="landing-actions">
-          <Link className="landing-primary-cta" to="/portfolio">
-            Go to My Portfolio
-          </Link>
+          {isAuthenticated ? (
+            <>
+              <Link className="landing-primary-cta" to="/portfolio">
+                Go to My Portfolio
+              </Link>
+              <button type="button" className="landing-secondary-cta" onClick={handleLogout}>
+                Log out
+              </button>
+            </>
+          ) : (
+            <Link className="landing-primary-cta" to="/login" state={{ from: '/portfolio' }}>
+              Sign in to access watchlist
+            </Link>
+          )}
           <a className="landing-secondary-cta" href="#markets">
             Explore Features
           </a>
@@ -286,20 +330,34 @@ export function LandingPage() {
               />
             </div>
           </div>
-          <p>Bought shares are added to watchlist automatically.</p>
+          {isAuthenticated
+            ? <p>Bought shares are added to watchlist automatically.</p>
+            : <p>Sign in to unlock watchlist controls and private symbols.</p>}
         </div>
 
-        <div className="landing-watchlist">
-          <h3>Watchlist</h3>
-          <p>Showing {watchlistMarkets.length} symbols.</p>
-          <div className="landing-watchlist-chips">
-            {watchlistMarkets.map((item) => (
-              <span key={item.symbol} className="landing-watchlist-chip">
-                {item.symbol}
-              </span>
-            ))}
+        {isAuthResolved && isAuthenticated && (
+          <div className="landing-watchlist">
+            <h3>Watchlist</h3>
+            <p>Showing {watchlistMarkets.length} symbols.</p>
+            <div className="landing-watchlist-chips">
+              {watchlistMarkets.map((item) => (
+                <span key={item.symbol} className="landing-watchlist-chip">
+                  {item.symbol}
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+
+        {isAuthResolved && !isAuthenticated && (
+          <div className="landing-watchlist landing-watchlist-locked" role="status" aria-live="polite">
+            <h3>Watchlist locked</h3>
+            <p>Sign in to view your watchlist symbols and counts.</p>
+            <button type="button" className="landing-primary-cta" onClick={redirectToLogin}>
+              Sign in
+            </button>
+          </div>
+        )}
 
         {isLoadingMarkets && <p>Loading markets...</p>}
 
@@ -347,6 +405,7 @@ export function LandingPage() {
               const isAutoFavourite = heldSymbols.has(item.symbol);
               const isFavourite = watchlistSymbols.has(item.symbol);
               const isExpanded = expandedMarket === item.symbol;
+              const isWatchlistDisabled = isAutoFavourite || !isAuthenticated;
 
               return (
                 <div className="landing-market-group" key={item.symbol}>
@@ -354,12 +413,25 @@ export function LandingPage() {
                     <button
                       type="button"
                       className={`landing-favourite-button${isFavourite ? ' landing-favourite-active' : ''}`}
-                      onClick={() => toggleWatchlist(item.symbol)}
-                      disabled={isAutoFavourite}
-                      aria-label={`${isFavourite ? 'Remove from watchlist' : 'Add to watchlist'} ${item.symbol}`}
-                      title={isAutoFavourite ? 'Bought shares cannot be removed from watchlist.' : undefined}
+                      onClick={() => {
+                        if (!isAuthenticated) {
+                          redirectToLogin();
+                          return;
+                        }
+
+                        toggleWatchlist(item.symbol);
+                      }}
+                      disabled={isWatchlistDisabled}
+                      aria-label={isAuthenticated
+                        ? `${isFavourite ? 'Remove from watchlist' : 'Add to watchlist'} ${item.symbol}`
+                        : `Sign in to manage watchlist ${item.symbol}`}
+                      title={isAutoFavourite
+                        ? 'Bought shares cannot be removed from watchlist.'
+                        : !isAuthenticated
+                          ? 'Sign in to manage your watchlist.'
+                          : undefined}
                     >
-                      {isAutoFavourite ? '♥' : isFavourite ? '♥' : '♡'}
+                      {isAuthenticated && (isAutoFavourite || isFavourite) ? '♥' : '♡'}
                     </button>
                     <span>{item.symbol}</span>
                     <span>{item.companyName}</span>

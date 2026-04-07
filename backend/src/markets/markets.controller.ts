@@ -1,5 +1,7 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Request } from 'express';
 import { MarketsService } from './markets.service';
+import { SessionAuthGuard } from '../auth/session-auth.guard';
 
 type TradeRequest = {
   symbol: string;
@@ -15,22 +17,35 @@ export class MarketsController {
   constructor(private readonly marketsService: MarketsService) {}
 
   @Get('summary')
-  getSummary() {
-    return this.marketsService.getSummary();
+  @UseGuards(SessionAuthGuard)
+  getSummary(@Req() request: Request & { user: { id: string } }) {
+    return this.marketsService.getSummary(request.user.id);
   }
 
   @Post('buy')
-  buyShares(@Body() trade: TradeRequest) {
-    return this.marketsService.buyShares(trade.symbol, trade.quantity);
+  @UseGuards(SessionAuthGuard)
+  buyShares(
+    @Req() request: Request & { user: { id: string } },
+    @Body() trade: TradeRequest,
+  ) {
+    return this.marketsService.buyShares(request.user.id, trade.symbol, trade.quantity);
   }
 
   @Post('sell')
-  sellShares(@Body() trade: TradeRequest) {
-    return this.marketsService.sellShares(trade.symbol, trade.quantity);
+  @UseGuards(SessionAuthGuard)
+  sellShares(
+    @Req() request: Request & { user: { id: string } },
+    @Body() trade: TradeRequest,
+  ) {
+    return this.marketsService.sellShares(request.user.id, trade.symbol, trade.quantity);
   }
 
   @Post('watchlist')
-  toggleWatchlist(@Body() watchlist: WatchlistRequest) {
-    return this.marketsService.toggleWatchlist(watchlist.symbol);
+  @UseGuards(SessionAuthGuard)
+  toggleWatchlist(
+    @Req() request: Request & { user: { id: string } },
+    @Body() watchlist: WatchlistRequest,
+  ) {
+    return this.marketsService.toggleWatchlist(request.user.id, watchlist.symbol);
   }
 }
