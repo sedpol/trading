@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { AuthService } from './auth.service';
 import { SESSION_COOKIE_NAME } from './auth.types';
 
+const DEMO_IDENTIFIER = process.env.DEMO_AUTH_USERNAME ?? 'trader';
+const DEMO_PASSWORD = process.env.DEMO_AUTH_PASSWORD ?? 'test-demo-password';
+
 describe('AuthService token extraction', () => {
   const service = new AuthService();
 
@@ -36,7 +39,7 @@ describe('AuthService token extraction', () => {
   });
 
   it('uses the same cookie source in resolveSessionFromHttpRequest as protected routes', () => {
-    const session = service.login({ identifier: 'trader', password: 'trading123' });
+    const session = service.login({ identifier: DEMO_IDENTIFIER, password: DEMO_PASSWORD });
 
     const resolved = service.resolveSessionFromHttpRequest({
       cookies: {

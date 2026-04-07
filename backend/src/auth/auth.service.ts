@@ -9,12 +9,22 @@ import {
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 8;
 
-const DEMO_USER: AuthenticatedUser & { password: string } = {
-  id: 'user-demo-1',
-  username: 'trader',
-  email: 'trader@example.com',
-  password: 'trading123',
+const readRequiredEnv = (name: string) => {
+  const value = process.env[name]?.trim();
+
+  if (!value) {
+    throw new Error(`Missing required auth environment variable: ${name}`);
+  }
+
+  return value;
 };
+
+const getDemoUser = (): AuthenticatedUser & { password: string } => ({
+  id: process.env.DEMO_AUTH_USER_ID?.trim() || 'user-demo-1',
+  username: process.env.DEMO_AUTH_USERNAME?.trim() || 'trader',
+  email: process.env.DEMO_AUTH_EMAIL?.trim() || 'trader@example.com',
+  password: readRequiredEnv('DEMO_AUTH_PASSWORD'),
+});
 
 type SessionLookupInput = {
   headers?: Record<string, unknown>;
@@ -70,6 +80,7 @@ export class AuthService {
   private readonly sessions = new Map<string, AuthSession>();
 
   login(request: LoginRequest) {
+    const demoUser = getDemoUser();
     const identifier = request?.identifier?.trim();
     const password = request?.password;
 
@@ -79,10 +90,10 @@ export class AuthService {
 
     const normalizedIdentifier = identifier.toLowerCase();
     const isIdentifierValid =
-      normalizedIdentifier === DEMO_USER.email.toLowerCase() ||
-      normalizedIdentifier === DEMO_USER.username.toLowerCase();
+      normalizedIdentifier === demoUser.email.toLowerCase() ||
+      normalizedIdentifier === demoUser.username.toLowerCase();
 
-    if (!isIdentifierValid || password !== DEMO_USER.password) {
+    if (!isIdentifierValid || password !== demoUser.password) {
       throw new UnauthorizedException('Invalid credentials.');
     }
 
@@ -92,9 +103,9 @@ export class AuthService {
       token,
       expiresAt,
       user: {
-        id: DEMO_USER.id,
-        username: DEMO_USER.username,
-        email: DEMO_USER.email,
+        id: demoUser.id,
+        username: demoUser.username,
+        email: demoUser.email,
       },
     };
 

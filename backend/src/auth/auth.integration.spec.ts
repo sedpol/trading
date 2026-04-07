@@ -4,13 +4,16 @@ import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AppModule } from '../app.module';
 
+const DEMO_IDENTIFIER = process.env.DEMO_AUTH_USERNAME ?? 'trader';
+const DEMO_PASSWORD = process.env.DEMO_AUTH_PASSWORD ?? 'test-demo-password';
+
 describe('Auth + Markets integration', () => {
   let app: INestApplication;
 
   const getSessionCookie = async () => {
     const login = await request(app.getHttpServer())
       .post('/auth/login')
-      .send({ identifier: 'trader', password: 'trading123' });
+      .send({ identifier: DEMO_IDENTIFIER, password: DEMO_PASSWORD });
 
     expect(login.status).toBe(201);
     const cookies = login.headers['set-cookie'];
@@ -160,5 +163,20 @@ describe('Auth + Markets integration', () => {
 
     expect(afterLogout.status).toBe(401);
     expect(afterLogout.body.message).toBe('Unauthorized');
+  });
+
+  it('rate limits repeated failed login attempts', async () => {
+    const attempts = Array.from({ length: 5 }, () =>
+      request(app.getHttpServer())
+        .post('/auth/login')
+        .set('X-Forwarded-For', '203.0.113.10')
+        .send({ identifier: DEMO_IDENTIFIER, password: 'wrong-password' }),
+    );
+
+    const responses = await Promise.all(attempts);
+
+    expect(responses.slice(0, 4).every((response) => response.status === 401)).toBe(true);
+    expect(responses[4].status).toBe(429);
+    expect(responses[4].body.message).toMatch(/Too many login attempts/i);
   });
 });

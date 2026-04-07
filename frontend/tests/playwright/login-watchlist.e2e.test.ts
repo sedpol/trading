@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 const authSessionKey = 'trading.auth.session';
+const demoIdentifier = process.env.DEMO_AUTH_USERNAME ?? 'trader';
+const demoPassword = process.env.DEMO_AUTH_PASSWORD ?? 'test-demo-password';
 
 const summaryWithWatchlist = {
   balance: 20000,
@@ -82,7 +84,7 @@ test('logs in and returns user to originally requested protected route', async (
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ user: { identifier: 'trader' } }),
+        body: JSON.stringify({ user: { identifier: demoIdentifier } }),
       });
     } else {
       await route.fulfill({
@@ -98,7 +100,7 @@ test('logs in and returns user to originally requested protected route', async (
     await route.fulfill({
       status: 201,
       contentType: 'application/json',
-      body: JSON.stringify({ user: { identifier: 'trader' } }),
+      body: JSON.stringify({ user: { identifier: demoIdentifier } }),
     });
   });
 
@@ -113,8 +115,8 @@ test('logs in and returns user to originally requested protected route', async (
   await page.goto('/portfolio');
   await expect(page).toHaveURL(/\/login$/);
 
-  await page.getByLabel('Email or username').fill('trader');
-  await page.getByLabel('Password').fill('trading123');
+  await page.getByLabel('Email or username').fill(demoIdentifier);
+  await page.getByLabel('Password').fill(demoPassword);
   await page.getByRole('button', { name: 'Sign in' }).click();
 
   await expect(page).toHaveURL(/\/portfolio$/);
@@ -129,7 +131,7 @@ test('removes an item from watchlist for authenticated user', async ({ page }) =
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ user: { identifier: 'trader' } }),
+      body: JSON.stringify({ user: { identifier: demoIdentifier } }),
     });
   });
 
@@ -158,9 +160,9 @@ test('removes an item from watchlist for authenticated user', async ({ page }) =
   });
 
   await page.goto('/');
-  await page.evaluate((key) => {
-    window.localStorage.setItem(key, JSON.stringify({ identifier: 'trader' }));
-  }, authSessionKey);
+  await page.evaluate(({ key, identifier }) => {
+    window.localStorage.setItem(key, JSON.stringify({ identifier }));
+  }, { key: authSessionKey, identifier: demoIdentifier });
 
   await page.goto('/portfolio');
 
@@ -185,7 +187,7 @@ test('shows an actionable error for invalid credentials and keeps user logged ou
 
   await page.goto('/login');
 
-  await page.getByLabel('Email or username').fill('trader');
+  await page.getByLabel('Email or username').fill(demoIdentifier);
   await page.getByLabel('Password').fill('wrong-password');
   await page.getByRole('button', { name: 'Sign in' }).click();
 
@@ -195,9 +197,9 @@ test('shows an actionable error for invalid credentials and keeps user logged ou
 
 test('logout revokes watchlist access and redirects future protected navigation back to login', async ({ page }) => {
   await page.goto('/');
-  await page.evaluate((key) => {
-    window.localStorage.setItem(key, JSON.stringify({ identifier: 'trader' }));
-  }, authSessionKey);
+  await page.evaluate(({ key, identifier }) => {
+    window.localStorage.setItem(key, JSON.stringify({ identifier }));
+  }, { key: authSessionKey, identifier: demoIdentifier });
 
   let loggedOut = false;
 
@@ -212,7 +214,7 @@ test('logout revokes watchlist access and redirects future protected navigation 
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ user: { identifier: 'trader' } }),
+        body: JSON.stringify({ user: { identifier: demoIdentifier } }),
       });
     }
   });

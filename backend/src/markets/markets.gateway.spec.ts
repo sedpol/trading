@@ -5,6 +5,8 @@ import { MarketsService } from './markets.service';
 import { AuthService } from '../auth/auth.service';
 
 type MockedSocket = Pick<Socket, 'id' | 'handshake' | 'disconnect' | 'emit'>;
+const demoUsername = process.env.DEMO_AUTH_USERNAME ?? 'trader';
+const demoEmail = process.env.DEMO_AUTH_EMAIL ?? 'trader@example.com';
 
 describe('MarketsGateway', () => {
   let gateway: MarketsGateway;
@@ -70,8 +72,8 @@ describe('MarketsGateway', () => {
       expiresAt: Date.now() + 60_000,
       user: {
         id: 'user-demo-1',
-        username: 'trader',
-        email: 'trader@example.com',
+        username: demoUsername,
+        email: demoEmail,
       },
     });
 
