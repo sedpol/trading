@@ -21,3 +21,8 @@ export type SessionResponse = {
   authenticated: boolean;
   user: AuthenticatedUser;
 };
+
+export type LoginResponse = SessionResponse & {
+  sessionToken: string;
+  expiresAt: number;
+};

@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Trading Mobile",
+    "slug": "trading-mobile",
+    "scheme": "trading-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#f4efe6"
+      }
+    },
+    "experiments": {
+      "autolinkingModuleResolution": true
+    },
+    "extra": {
+      "apiBaseUrl": ""
+    }
+  }
+}

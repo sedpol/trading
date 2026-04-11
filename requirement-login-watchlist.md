@@ -164,3 +164,101 @@ Status Transition: Drafting -> Ready (2026-04-07)
   - Validate in staging with targeted regression suite for login -> trade and login -> watchlist mutation journeys.
   - Monitor 401 rates by endpoint after release and compare authenticated vs unauthenticated cohorts.
   - Exit criteria: no reproducible auth regression in buy/sell and add/remove watchlist flows across supported browsers.
+
+---
+
+### Request: Stabilize Backend Auth Rate-Limit Integration Test
+Date: 2026-04-08
+Status: Done
+Owner: product-manager
+Status Transition: Drafting -> Ready (2026-04-08)
+
+#### 1. Research Findings and Product Assumptions
+- Reference patterns reviewed:
+  - Brokerage-grade auth services typically keep rate-limit integration tests deterministic by isolating server lifecycle, fake timers, and auth-attempt state per test.
+  - CI-stable Node/Nest integration suites avoid shared port/socket contention and close app/server handles explicitly after each test run.
+- Key findings:
+  - Current backend failure mode is infrastructure/test-harness instability (`ECONNRESET`) in `src/auth/auth.integration.spec.ts` for repeated failed login attempts, rather than expected functional assertion mismatch.
+  - Intermittent connection reset in auth integration tests can mask real regressions in brute-force protection and block reliable release validation.
+- Product assumptions:
+  - Auth rate limiting behavior itself remains product-correct; this request is to make integration coverage reliable and repeatable.
+  - No user-facing auth UX or API contract change is required for this defect fix.
+
+#### 2. Problem Statement
+- Backend coverage run shows one failing auth integration test: `rate limits repeated failed login attempts` in `src/auth/auth.integration.spec.ts`, failing with `ECONNRESET`.
+- This creates release risk because auth guardrails (failed-login throttling) cannot be validated consistently.
+- Unstable test behavior increases false negatives and slows defect triage for security-sensitive login behavior.
+
+#### 3. Goals and Success Metrics
+- Goal(s):
+  - Stabilize backend auth rate-limit integration testing so the failing test executes deterministically in local and CI environments.
+  - Preserve existing functional intent of rate-limit protection while removing transport/runtime flakiness.
+- KPI(s):
+  - 100% pass rate for `src/auth/auth.integration.spec.ts` across 20 consecutive local runs.
+  - 100% pass rate for the same test in CI across 10 consecutive pipeline runs.
+  - 0 occurrences of `ECONNRESET` in auth integration test logs during validation window.
+
+#### 4. Scope
+- In scope:
+  - Test harness and integration-test stability changes required for auth rate-limit scenario.
+  - Deterministic setup/teardown, app lifecycle handling, and timing/state control used by the failing test.
+  - Minimal supporting backend test utilities required to eliminate socket reset flakiness.
+- Out of scope:
+  - Login UX changes.
+  - New rate-limit product policy.
+  - Frontend behavior updates.
+
+#### 5. Prioritized Requirements
+- P0:
+  - `src/auth/auth.integration.spec.ts` test `rate limits repeated failed login attempts` must run without `ECONNRESET` under repeated execution.
+  - Integration test setup must guarantee clean app/server initialization and disposal per suite so no dangling sockets/handles remain.
+  - Rate-limit test must assert the intended auth outcome (throttled/unauthorized response contract) independent of network-transport flakiness.
+  - Test data/state isolation must prevent cross-test contamination of auth attempt counters and session artifacts.
+- P1:
+  - Add targeted diagnostics for test-only failures (without logging credentials or secrets) to speed future triage.
+  - Document deterministic execution expectations for auth integration tests in backend test notes.
+- P2:
+  - Evaluate consolidating auth integration test helper patterns to reduce future flaky-test risk.
+
+#### 6. Acceptance Criteria (Given/When/Then)
+- Given backend auth integration tests are executed, when `src/auth/auth.integration.spec.ts` runs the `rate limits repeated failed login attempts` scenario, then the test completes without `ECONNRESET`.
+- Given repeated failed login attempts are submitted in the integration scenario, when the configured threshold is exceeded, then the API returns the expected rate-limit auth response and the test assertion passes deterministically.
+- Given the auth integration suite is run 20 times consecutively in local environment, when execution completes, then there are zero flaky failures for this scenario.
+- Given the same suite runs in CI, when 10 consecutive pipelines complete, then there are zero `ECONNRESET` failures for this scenario.
+- Given test diagnostics are enabled for failures, when this scenario fails for any reason other than assertions, then logs provide actionable lifecycle context without exposing credentials, tokens, or sensitive account data.
+
+#### 7. Frontend Handoff
+- No frontend implementation changes required for this defect fix.
+- Frontend-engineer support is only needed if backend identifies client-request sequencing assumptions during investigation.
+
+#### 8. Backend Handoff
+- Ownership: backend-engineer.
+- Stabilize auth integration test lifecycle in `src/auth/auth.integration.spec.ts` and related auth test setup utilities.
+- Ensure deterministic Nest app/server bootstrap and teardown for the auth integration suite, including explicit closure of open handles.
+- Remove shared mutable test state that can leak between auth tests (rate-limit counters, session/auth artifacts, timers).
+- Keep existing auth product behavior unchanged; only adjust test scaffolding and minimal backend test plumbing required for deterministic execution.
+- Preserve security posture: test logs must never include raw credentials, raw tokens, or full session identifiers.
+- Deliver with evidence:
+  - Local repeated-run output summary proving stability target.
+  - CI run links or artifacts showing consecutive pass streak with no `ECONNRESET` for this test.
+
+#### 9. Dependencies and Risks
+- Dependencies:
+  - Deterministic test environment configuration for backend integration tests.
+  - Reliable CI resource allocation to avoid external socket starvation artifacts.
+- Risks:
+  - Overfitting test timing could hide legitimate rate-limit regressions if assertions are weakened.
+  - Aggressive teardown changes could affect other auth integration scenarios if not validated broadly.
+
+#### 10. Open Questions
+- Should this stability fix also include a lightweight flaky-test guard job that re-runs auth integration tests multiple times per PR?
+- Is there an agreed CI threshold for classifying a test as flaky in this repository?
+
+#### 11. Rollout and Validation Plan
+- Rollout steps:
+  - Implement backend test-stability changes behind this requirement.
+  - Validate local repeated-run pass streak, then run backend CI validation.
+  - Merge only after acceptance criteria are met and evidence is attached to PR.
+- Post-release checks:
+  - Monitor backend test pipeline for 7 days to confirm no reappearance of `ECONNRESET` in auth integration scope.
+  - If regression recurs, open follow-up requirement for systemic test-harness hardening.

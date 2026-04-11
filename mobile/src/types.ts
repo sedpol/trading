@@ -1,0 +1,70 @@
+export type ProtectedRouteName = 'Markets' | 'Portfolio';
+
+export type AuthenticatedUser = {
+  id: string;
+  username: string;
+  email: string;
+  identifier: string;
+};
+
+export type AuthSessionRecord = {
+  token: string;
+  identifier: string;
+  expiresAt?: number | null;
+};
+
+export type PositionLot = {
+  quantity: number;
+  boughtPrice: number;
+};
+
+export type TradeHistoryItem = {
+  id: string;
+  symbol: string;
+  side: 'BUY' | 'SELL';
+  quantity: number;
+  price: number;
+  grossTotal: number;
+  commission: number;
+  netTotal: number;
+  timestamp: string;
+};
+
+export type WatchlistItem = {
+  symbol: string;
+  companyName: string;
+  startPrice: number;
+  price: number;
+  change: number;
+};
+
+export type Position = {
+  symbol: string;
+  companyName?: string;
+  quantity: number;
+  averagePrice: number;
+  lots: PositionLot[];
+};
+
+export type PositionWithPnl = Position & {
+  marketPrice: number;
+  pnlPerShare: number;
+  totalPnl: number;
+};
+
+export type Summary = {
+  balance: number;
+  cashBalance: number;
+  dailyPnl: number;
+  watchlist: WatchlistItem[];
+  allMarkets: WatchlistItem[];
+  positions: Position[];
+  history: TradeHistoryItem[];
+};
+
+export type ApiUser = {
+  id: string;
+  username: string;
+  email: string;
+  identifier?: string;
+};

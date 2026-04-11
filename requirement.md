@@ -75,3 +75,5 @@ Owner: product-manager
 - Holdings P&L page requirements: `requirement-holdings-pnl.md`
 - Landing and My Portfolio page requirements: `requirement-landing-portfolio.md`
 - Login and watchlist access requirements: `requirement-login-watchlist.md`
+- Alpha Vantage market data integration: `requirement-alpha-vantage.md`
+- Expo mobile app parity requirements: `requirement-mobile-app.md`

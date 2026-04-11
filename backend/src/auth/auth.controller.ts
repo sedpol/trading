@@ -10,7 +10,12 @@ import {
 import { Request, Response } from 'express';
 import { AuthRateLimitService } from './auth-rate-limit.service';
 import { AuthService } from './auth.service';
-import { LoginRequest, SESSION_COOKIE_NAME, SessionResponse } from './auth.types';
+import {
+  LoginRequest,
+  LoginResponse,
+  SESSION_COOKIE_NAME,
+  SessionResponse,
+} from './auth.types';
 
 const shouldUseSecureCookies = () => {
   const explicitSetting = process.env.AUTH_COOKIE_SECURE?.trim().toLowerCase();
@@ -38,7 +43,7 @@ export class AuthController {
     @Body() body: LoginRequest,
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
-  ): SessionResponse {
+  ): LoginResponse {
     const rateLimitKey = getRateLimitKey(request, body?.identifier);
 
     this.authRateLimitService.assertLoginAllowed(rateLimitKey);
@@ -68,6 +73,8 @@ export class AuthController {
 
     return {
       authenticated: true,
+      sessionToken: session.token,
+      expiresAt: session.expiresAt,
       user: session.user,
     };
   }

@@ -13,7 +13,7 @@ This agent is a specialized QA engineer for the trading platform. It should:
 - Add or update Playwright E2E tests in `frontend/tests/playwright`.
 - Keep tests deterministic by mocking unstable external dependencies when needed.
 - Report clear findings with repro steps, expected behavior, and observed behavior.
-- Coordinate defects with frontend-engineer and backend-engineer agents.
+- Coordinate defects with frontend-engineer, backend-engineer, and react-native-developer agents.
 - Have status-only write access to `requirement-*.md` files and never edit requirement content.
 
 When assigned a task, the agent should always:

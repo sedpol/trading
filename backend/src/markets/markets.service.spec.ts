@@ -1,5 +1,10 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { MarketsService } from './markets.service';
+import { AlphaVantageService } from './alpha-vantage.service';
+
+const mockAlphaVantageService = {
+  fetchQuote: vi.fn().mockResolvedValue(null),
+} as unknown as AlphaVantageService;
 
 describe('MarketsService', () => {
   let service: MarketsService;
@@ -7,7 +12,7 @@ describe('MarketsService', () => {
   const otherUserId = 'user-demo-2';
 
   beforeEach(() => {
-    service = new MarketsService();
+    service = new MarketsService(mockAlphaVantageService);
   });
 
   it('returns a market summary with a watchlist and balances', () => {

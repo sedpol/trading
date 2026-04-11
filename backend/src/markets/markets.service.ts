@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { AlphaVantageService } from './alpha-vantage.service';
 
 type WatchlistItem = {
   symbol: string;
@@ -51,10 +52,62 @@ type UserMarketState = {
 
 const INITIAL_CASH_BALANCE = 20000;
 const DEFAULT_WATCHLIST_SYMBOLS = ['AAPL', 'GOOG', 'MSFT', 'NVDA', 'AMZN'];
+const ALPHA_VANTAGE_FREE_TIER_THROTTLE_MS = 1100;
+const MARKET_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
-export class MarketsService {
+export class MarketsService implements OnModuleInit, OnModuleDestroy {
   private readonly userStates = new Map<string, UserMarketState>();
+  private refreshInterval: NodeJS.Timeout | null = null;
+  private refreshPromise: Promise<void> | null = null;
+
+  constructor(private readonly alphaVantageService: AlphaVantageService) {}
+
+  async onModuleInit(): Promise<void> {
+    await this.refreshAllSymbols();
+
+    this.refreshInterval = setInterval(() => {
+      void this.refreshAllSymbols();
+    }, MARKET_REFRESH_INTERVAL_MS);
+  }
+
+  onModuleDestroy(): void {
+    if (this.refreshInterval) {
+      clearInterval(this.refreshInterval);
+      this.refreshInterval = null;
+    }
+  }
+
+  private async refreshAllSymbols(): Promise<void> {
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    this.refreshPromise = this.refreshAllSymbolsInternal();
+
+    try {
+      await this.refreshPromise;
+    } finally {
+      this.refreshPromise = null;
+    }
+  }
+
+  private async refreshAllSymbolsInternal(): Promise<void> {
+    for (const item of this.allMarkets) {
+      const result = await this.alphaVantageService.fetchQuote(item.symbol);
+
+      if (result !== null) {
+        item.price = result.price;
+        item.change = Math.abs(result.change);
+        item.startPrice = result.startPrice;
+      } else {
+        console.warn(`MarketsService: no quote for ${item.symbol}, retaining cached price`);
+      }
+
+      // Alpha Vantage free-tier quote requests are single-symbol calls, so we pace them.
+      await new Promise((resolve) => setTimeout(resolve, ALPHA_VANTAGE_FREE_TIER_THROTTLE_MS));
+    }
+  }
 
   private readonly allMarkets: WatchlistItem[] = [
     { symbol: 'AAPL', companyName: 'Apple Inc.', startPrice: 212.48, price: 212.48, change: 0 },
@@ -178,21 +231,6 @@ export class MarketsService {
   }
 
   updateWatchlistPrices(): MarketSummary {
-    this.allMarkets.forEach((item) => {
-      const direction = Math.random() < 0.5 ? -1 : 1;
-      const delta = Number((Math.random() * 0.58).toFixed(2));
-      const nextPrice = Number(
-        Math.max(0, item.price + (item.price * direction * delta) / 100).toFixed(2),
-      );
-      const percentChange =
-        item.startPrice === 0
-          ? 0
-          : Number((((nextPrice - item.startPrice) / item.startPrice) * 100).toFixed(2));
-
-      item.price = nextPrice;
-      item.change = percentChange;
-    });
-
     return this.getSummary();
   }
 
